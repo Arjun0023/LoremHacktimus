@@ -1,141 +1,231 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from 'react-router-dom';
-import "./style/home.css";
-import greenDot from "../public/assets/green-dot.svg";
-import grayDot from "../public/assets/grey-dot.svg";
-import DEFAULT_NO_IMAGE from "../public/assets/default_icon_listing.png";
-import loaderGif from "../public/assets/loader.gif";
-import axios from "axios";
-import urlJoin from "url-join";
-
+import React, { useState, useEffect, useRef } from "react";
+import { Upload, FileSpreadsheet, X, Send, Sparkles, FileText, BarChart3,Mic } from "lucide-react";
+import { useParams } from "react-router-dom";
+import "./style/home.css"; // Make sure to create this CSS file
+import BottomChatInput from "../components/input/InputComponent";
+import FilePreview from "../components/FilePreview/FilePreview";
+import FileUpload from "../components/FileUpload/FileUpload";
 const EXAMPLE_MAIN_URL = window.location.origin;
 
 export const Home = () => {
   const [pageLoading, setPageLoading] = useState(false);
-  const [productList, setProductList] = useState([]);
-  const DOC_URL_PATH = "/help/docs/sdk/latest/platform/company/catalog/#getProducts";
-  const DOC_APP_URL_PATH = "/help/docs/sdk/latest/platform/application/catalog#getAppProducts";
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [message, setMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [chatHistory, setChatHistory] = useState([
+    {
+      type: 'ai',
+      content: 'Hello! I\'m your AI assistant. Upload an Excel (.xlsx, .xls) or CSV file and ask me questions about your data.',
+      timestamp: new Date()
+    }
+  ]);
+  const [filePreview, setFilePreview] = useState(null);
   const { application_id, company_id } = useParams();
-  const documentationUrl ='https://api.fynd.com'
+  const fileInputRef = useRef(null);
   
-  useEffect(() => {
-    isApplicationLaunch() ? fetchApplicationProducts() : fetchProducts();
-  }, [application_id]);
+  // Get company_id and application_id from URL or props (you can modify this based on your routing setup)
 
-  const fetchProducts = async () => {
-    setPageLoading(true);
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv' // .csv
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+      alert('Please upload only Excel (.xlsx, .xls) or CSV files.');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('company_id', company_id);
+    formData.append('session_id','session123')
+    if (application_id) {
+      formData.append('application_id', application_id);
+    }
+
     try {
-      const { data } = await axios.get(urlJoin(EXAMPLE_MAIN_URL, '/api/products'),{
+      const response = await fetch(`${EXAMPLE_MAIN_URL}/api/upload-file`, {
+        method: 'POST',
+        body: formData,
         headers: {
-          "x-company-id": company_id,
+          'x-company-id': company_id,
         }
       });
-      setProductList(data.items);
-    } catch (e) {
-      console.error("Error fetching products:", e);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('File upload response:', result);
+        setFilePreview(result); // Add this line after setUploadedFile
+        setUploadedFile({
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        
+        // Add success message to chat
+        setChatHistory(prev => [...prev, {
+          type: 'system',
+          content: `✅ File "${file.name}" uploaded successfully! You can now ask questions about your data.`,
+          timestamp: new Date()
+        }]);
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setChatHistory(prev => [...prev, {
+        type: 'system',
+        content: `❌ Failed to upload "${file.name}". Please try again.`,
+        timestamp: new Date()
+      }]);
     } finally {
-      setPageLoading(false);
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
-  const fetchApplicationProducts = async () => {
-    setPageLoading(true);
-    try {
-      const { data } = await axios.get(urlJoin(EXAMPLE_MAIN_URL, `/api/products/application/${application_id}`),{
-        headers: {
-          "x-company-id": company_id,
-        }
-      })
-      setProductList(data.items);
-    } catch (e) {
-      console.error("Error fetching application products:", e);
-    } finally {
-      setPageLoading(false);
+  const handleSendMessage = async () => {
+    if (!message.trim()) return;
+
+    const userMessage = {
+      type: 'user',
+      content: message,
+      timestamp: new Date()
+    };
+
+    setChatHistory(prev => [...prev, userMessage]);
+    setMessage("");
+
+    // Simulate AI response (you can replace this with actual API call)
+    setTimeout(() => {
+      const aiResponse = {
+        type: 'ai',
+        content: uploadedFile 
+          ? `I can see you've uploaded "${uploadedFile.name}". Here's what I found in your data: [This would be your AI analysis based on the uploaded file]`
+          : "Please upload a file first so I can analyze your data and provide insights.",
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, aiResponse]);
+    }, 1000);
+  };
+
+  const removeFile = () => {
+    setUploadedFile(null);
+    setChatHistory(prev => [...prev, {
+      type: 'system',
+      content: 'File removed. Upload a new file to continue analysis.',
+      timestamp: new Date()
+    }]);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
-  
-
-  const productProfileImage = (media) => {
-    if (!media || !media.length) {
-      return DEFAULT_NO_IMAGE;
-    }
-    const profileImg = media.find(m => m.type === "image");
-    return profileImg?.url || DEFAULT_NO_IMAGE;
-  };
-
-  const getDocumentPageLink = () => {
-    return documentationUrl
-      .replace("api", "partners")
-      .concat(isApplicationLaunch() ? DOC_APP_URL_PATH : DOC_URL_PATH);
-  };
-
-  const isApplicationLaunch = () => !!application_id;
 
   return (
-    <>
-      {pageLoading ? (
-        <div className="loader" data-testid="loader">
-          <img src={loaderGif} alt="loader GIF" />
+    <div className="ai-saas-container">
+      {/* Header */}
+      <div className="header">
+        <div className="header-content">
+          <div className="header-info">
+            <div className="logo">
+              <Sparkles className="logo-icon" />
+            </div>
+            <div className="header-text">
+              <h1 className="main-title">AI Data Assistant</h1>
+              <p className="subtitle">Upload Excel or CSV files and get AI-powered insights</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="products-container">
-          <div className="title">
-            This is an example extension home page user interface.
-          </div>
-
-          <div className="section">
-            <div className="heading">
-              <span>Example {isApplicationLaunch() ? 'Application API' : 'Platform API'}</span> :
-              <a href={getDocumentPageLink()} target="_blank" rel="noopener noreferrer">
-                {isApplicationLaunch() ? 'getAppProducts' : 'getProducts'}
-              </a>
-            </div>
-            <div className="description">
-              This is an illustrative Platform API call to fetch the list of products
-              in this company. Check your extension folder’s 'server.js'
-              file to know how to call Platform API and start calling API you
-              require.
-            </div>
-          </div>
-
-          <div>
-            {productList.map((product, index) => (
-              <div className="product-list-container flex-row" key={`product-${product.name}-${index}`}>
-                <img className="mr-r-12" src={product.is_active ? greenDot : grayDot} alt="status" />
-                <div className="card-avatar mr-r-12">
-                  <img src={productProfileImage(product.media)} alt={product.name} />
-                </div>
-                <div className="flex-column">
-                  <div className="flex-row">
-                    <div className="product-name" data-testid={`product-name-${product.id}`}>
-                      {product.name}
-                    </div>
-                    <div className="product-item-code">|</div>
-                    {product.item_code && (
-                      <span className="product-item-code">
-                        Item Codessss:
-                        <span className="cl-RoyalBlue" data-testid={`product-item-code-${product.id}`}>
-                          {product.item_code}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                  {product.brand && (
-                    <div className="product-brand-name" data-testid={`product-brand-name-${product.id}`}>
-                      {product.brand.name}
-                    </div>
-                  )}
-                  {product.category_slug && (
-                    <div className="product-category" data-testid={`product-category-slug-${product.id}`}>
-                      Category: <span>{product.category_slug}</span>
-                    </div>
-                  )}
-                </div>
+      </div>
+  
+      {/* Main Layout */}
+      <div className="main-layout">
+        {/* Left Sidebar - Upload & Chat */}
+        <div className="left-sidebar">
+          {/* File Upload Section */}
+          <FileUpload
+            uploadedFile={uploadedFile}
+            isUploading={isUploading}
+            fileInputRef={fileInputRef}
+            handleFileUpload={handleFileUpload}
+            removeFile={removeFile}
+            formatFileSize={formatFileSize}
+          />
+  
+  
+          {/* Stats Cards */}
+          <div className="stats-section">
+            <div className="stat-card">
+              <div className="stat-icon-container blue">
+                <FileSpreadsheet className="stat-icon" />
               </div>
-            ))}
+              <div className="stat-info">
+                <p className="stat-value">{uploadedFile ? '1' : '0'}</p>
+                <p className="stat-label">Files</p>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-icon-container green">
+                <BarChart3 className="stat-icon" />
+              </div>
+              <div className="stat-info">
+                <p className="stat-value">{chatHistory.filter(c => c.type === 'ai').length - 1}</p>
+                <p className="stat-label">Insights</p>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-icon-container purple">
+                <Sparkles className="stat-icon" />
+              </div>
+              <div className="stat-info">
+                <p className="stat-value">{chatHistory.filter(c => c.type === 'ai').length}</p>
+                <p className="stat-label">Responses</p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
-    </>
+  
+        {/* Right Main Content - File Preview */}
+        <div className="main-content">
+        <FilePreview
+            filePreview={filePreview}
+            setMessage={setMessage}
+          />
+        </div>
+      </div>
+  
+      {/* Bottom Chat Input */}
+      <BottomChatInput
+        message={message}
+        setMessage={setMessage}
+        onSendMessage={handleSendMessage}
+        onKeyPress={handleKeyPress}
+        placeholder="Ask about your data..."
+      />
+    </div>
   );
-}
+};

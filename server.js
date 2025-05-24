@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
@@ -5,11 +6,39 @@ const path = require("path");
 const sqlite3 = require('sqlite3').verbose();
 const serveStatic = require("serve-static");
 const { readFileSync } = require('fs');
+const multer = require('multer'); // Add this for file upload handling
 const { setupFdk } = require("@gofynd/fdk-extension-javascript/express");
 const { SQLiteStorage } = require("@gofynd/fdk-extension-javascript/express/storage");
 const sqliteInstance = new sqlite3.Database('session_storage.db');
 const productRouter = express.Router();
+const FormDataLib = require('form-data'); // Rename to avoid conflicts
+const axios = require('axios');
 
+// Configure multer for file uploads
+const storage = multer.memoryStorage(); // Store files in memory for this dummy endpoint
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 100 * 1024 * 1024 // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Check file types
+        const allowedTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'text/csv' // .csv
+        ];
+        
+        const isValidType = allowedTypes.includes(file.mimetype) || 
+                          file.originalname.toLowerCase().endsWith('.csv');
+        
+        if (isValidType) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only Excel (.xlsx, .xls) and CSV files are allowed'));
+        }
+    }
+});
 
 const fdkExtension = setupFdk({
     api_key: process.env.EXTENSION_API_KEY,
@@ -76,6 +105,104 @@ app.post('/api/webhook-events', async function(req, res) {
       return res.status(500).json({"success": false});
     }
 })
+
+// New file upload endpoint
+app.post('/api/upload-file', upload.single('file'), async function(req, res) {
+    try {
+        // Check if file was uploaded
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // Get additional form data
+        const company_id = req.body.company_id || req.headers['x-company-id'];
+        const application_id = req.body.application_id;
+        const session_id = req.body.session_id;
+
+        // Log file details
+        console.log('File received successfully:');
+        console.log('- File name:', req.file.originalname);
+        console.log('- File size:', req.file.size, 'bytes');
+        console.log('- File type:', req.file.mimetype);
+        console.log('- Company ID:', company_id);
+        console.log('- Application ID:', application_id);
+        console.log('- Session ID:', session_id);
+        console.log('- Buffer length:', req.file.buffer.length);
+
+        // Create FormData using the renamed import
+        const forwardFormData = new FormDataLib();
+        
+        // Append the file buffer correctly
+        forwardFormData.append('file', req.file.buffer, {
+            filename: req.file.originalname,
+            contentType: req.file.mimetype
+        });
+        
+        // Only append session_id as required by the target API
+        forwardFormData.append('session_id', session_id || 'session123');
+
+        // Forward the request to the target API
+        console.log('Forwarding request to http://127.0.0.1:8000/upload');
+        
+        const forwardResponse = await axios.post('http://127.0.0.1:8000/upload', forwardFormData, {
+            headers: {
+                ...forwardFormData.getHeaders()
+                // Removed x-company-id header since target API doesn't expect it
+            },
+            timeout: 30000, // 30 second timeout
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+        });
+
+        // Return the response from the target API as-is
+        console.log('Received response from target API:', forwardResponse.status);
+        return res.status(forwardResponse.status).json(forwardResponse.data);
+
+    } catch (error) {
+        console.error('File upload/forward error:', error);
+        
+        // Handle multer errors
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                success: false,
+                message: 'File size exceeds 10MB limit'
+            });
+        }
+        
+        if (error.message && error.message.includes('Only Excel')) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid file type. Only Excel (.xlsx, .xls) and CSV files are allowed'
+            });
+        }
+
+        // Handle axios/forwarding errors
+        if (error.response) {
+            // The target API responded with an error status
+            console.error('Target API error response:', error.response.status, error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        } else if (error.request) {
+            // The request was made but no response was received
+            console.error('No response from target API:', error.message);
+            return res.status(503).json({
+                success: false,
+                message: 'Target service unavailable'
+            });
+        } else {
+            // Something else happened
+            console.error('Unexpected error:', error.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error during file upload'
+            });
+        }
+    }
+});
+
+
 
 productRouter.get('/', async function view(req, res, next) {
     try {
