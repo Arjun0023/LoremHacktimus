@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Upload, FileSpreadsheet, X, Send, Sparkles, FileText, BarChart3,Mic } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { Upload, FileSpreadsheet, X, Send, Sparkles, FileText, BarChart3, Mic } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import "./style/home.css"; // Make sure to create this CSS file
 import BottomChatInput from "../components/input/InputComponent";
 import FilePreview from "../components/FilePreview/FilePreview";
 import FileUpload from "../components/FileUpload/FileUpload";
+
 const EXAMPLE_MAIN_URL = window.location.origin;
 
 export const Home = () => {
@@ -12,6 +13,7 @@ export const Home = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isAsking, setIsAsking] = useState(false); // New state for ask loading
   const [chatHistory, setChatHistory] = useState([
     {
       type: 'ai',
@@ -21,10 +23,8 @@ export const Home = () => {
   ]);
   const [filePreview, setFilePreview] = useState(null);
   const { application_id, company_id } = useParams();
+  const navigate = useNavigate(); // Add navigate hook
   const fileInputRef = useRef(null);
-  
-  // Get company_id and application_id from URL or props (you can modify this based on your routing setup)
-
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -46,7 +46,7 @@ export const Home = () => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('company_id', company_id);
-    formData.append('session_id','session123')
+    formData.append('session_id', 'session123');
     if (application_id) {
       formData.append('application_id', application_id);
     }
@@ -63,7 +63,7 @@ export const Home = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('File upload response:', result);
-        setFilePreview(result); // Add this line after setUploadedFile
+        setFilePreview(result);
         setUploadedFile({
           name: file.name,
           size: file.size,
@@ -96,31 +96,79 @@ export const Home = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-
+  
     const userMessage = {
       type: 'user',
       content: message,
       timestamp: new Date()
     };
-
+  
     setChatHistory(prev => [...prev, userMessage]);
+    const currentMessage = message;
     setMessage("");
-
-    // Simulate AI response (you can replace this with actual API call)
-    setTimeout(() => {
-      const aiResponse = {
-        type: 'ai',
-        content: uploadedFile 
-          ? `I can see you've uploaded "${uploadedFile.name}". Here's what I found in your data: [This would be your AI analysis based on the uploaded file]`
-          : "Please upload a file first so I can analyze your data and provide insights.",
+    setIsAsking(true);
+  
+    if (!uploadedFile) {
+      setTimeout(() => {
+        const aiResponse = {
+          type: 'ai',
+          content: "Please upload a file first so I can analyze your data and provide insights.",
+          timestamp: new Date()
+        };
+        setChatHistory(prev => [...prev, aiResponse]);
+        setIsAsking(false);
+      }, 1000);
+      return;
+    }
+  
+    try {
+      // Create FormData instead of JSON
+      const formData = new FormData();
+      formData.append('question', currentMessage.trim());
+      formData.append('session_id', 'session123');
+      formData.append('language', 'en-IN');
+  
+      const response = await fetch(`${EXAMPLE_MAIN_URL}/api/route-ask`, {
+        method: 'POST',
+        headers: {
+          'x-company-id': company_id,
+          // Remove Content-Type header - let browser set it for FormData
+        },
+        body: formData // Send FormData instead of JSON
+      });
+  
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Ask API response:', result);
+        
+        const askPath = application_id 
+          ? `/company/${company_id}/application/${application_id}/ask`
+          : `/company/${company_id}/ask`;
+          
+        navigate(askPath, {
+          state: {
+            data: result,
+            question: currentMessage
+          }
+        });
+      } else {
+        throw new Error('Ask request failed');
+      }
+    } catch (error) {
+      console.error('Ask error:', error);
+      setChatHistory(prev => [...prev, {
+        type: 'system',
+        content: `❌ Failed to process your question. Please try again.`,
         timestamp: new Date()
-      };
-      setChatHistory(prev => [...prev, aiResponse]);
-    }, 1000);
+      }]);
+    } finally {
+      setIsAsking(false);
+    }
   };
 
   const removeFile = () => {
     setUploadedFile(null);
+    setFilePreview(null); // Also clear file preview
     setChatHistory(prev => [...prev, {
       type: 'system',
       content: 'File removed. Upload a new file to continue analysis.',
@@ -173,8 +221,7 @@ export const Home = () => {
             removeFile={removeFile}
             formatFileSize={formatFileSize}
           />
-  
-  
+          
           {/* Stats Cards */}
           <div className="stats-section">
             <div className="stat-card">
@@ -211,7 +258,7 @@ export const Home = () => {
   
         {/* Right Main Content - File Preview */}
         <div className="main-content">
-        <FilePreview
+          <FilePreview
             filePreview={filePreview}
             setMessage={setMessage}
           />
@@ -224,7 +271,8 @@ export const Home = () => {
         setMessage={setMessage}
         onSendMessage={handleSendMessage}
         onKeyPress={handleKeyPress}
-        placeholder="Ask about your data..."
+        placeholder={isAsking ? "Processing your question..." : "Ask about your data..."}
+        disabled={isAsking || isUploading}
       />
     </div>
   );

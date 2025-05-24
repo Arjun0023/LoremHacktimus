@@ -1,0 +1,194 @@
+/* Pie Chart Component Styles */
+.pie-chart-wrapper {
+    width: 100%;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    position: relative;
+  }
+  
+  .chart-container {
+    width: 100%;
+    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .no-chart-data {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 300px;
+    color: #9ca3af;
+    font-size: 16px;
+    font-weight: 500;
+    background: #f9fafb;
+    border-radius: 12px;
+    border: 2px dashed #d1d5db;
+  }
+  
+  .custom-pie-tooltip {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    min-width: 120px;
+  }
+  
+  .tooltip-label {
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 4px 0;
+    font-size: 14px;
+  }
+  
+  .tooltip-value {
+    margin: 2px 0;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  
+  .tooltip-percentage {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+  }
+  
+  .chart-note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+  }
+  
+  .chart-note p {
+    margin: 0;
+    font-size: 14px;
+    color: #6b7280;
+    font-style: italic;
+  }
+  
+  /* Recharts custom styles for pie chart */
+  .recharts-pie-sector {
+    stroke: white;
+    stroke-width: 2;
+    transition: all 0.3s ease;
+  }
+  
+  .recharts-pie-sector:hover {
+    filter: brightness(1.1);
+    stroke-width: 3;
+  }
+  
+  .recharts-legend-wrapper {
+    padding-top: 20px !important;
+  }
+  
+  .recharts-legend-item {
+    margin-right: 10px !important;
+  }
+  
+  .recharts-legend-item-text {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+  }
+  
+  .recharts-tooltip-wrapper {
+    z-index: 100;
+  }
+  
+  /* Custom legend styling */
+  .recharts-default-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  
+  .recharts-legend-item {
+    display: flex !important;
+    align-items: center !important;
+    margin: 4px 8px !important;
+  }
+  
+  /* Loading animation for chart */
+  .chart-container:empty::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e2e8f0;
+    border-left: 4px solid #667eea;
+    border-radius: 50%;
+    animation: chartSpin 1s linear infinite;
+    margin: auto;
+  }
+  
+  @keyframes chartSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .pie-chart-wrapper {
+      padding: 16px;
+    }
+    
+    .chart-container {
+      height: 350px;
+    }
+    
+    .custom-pie-tooltip {
+      padding: 8px;
+      min-width: 100px;
+    }
+    
+    .tooltip-label {
+      font-size: 13px;
+    }
+    
+    .tooltip-value {
+      font-size: 12px;
+    }
+    
+    .tooltip-percentage {
+      font-size: 11px;
+    }
+    
+    .chart-note {
+      margin-top: 12px;
+      padding: 8px;
+    }
+    
+    .chart-note p {
+      font-size: 13px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .pie-chart-wrapper {
+      padding: 12px;
+      border-radius: 8px;
+    }
+    
+    .chart-container {
+      height: 300px;
+    }
+    
+    .no-chart-data {
+      font-size: 14px;
+      height: 250px;
+    }
+    
+    .recharts-legend-item-text {
+      font-size: 12px !important;
+    }
+  }

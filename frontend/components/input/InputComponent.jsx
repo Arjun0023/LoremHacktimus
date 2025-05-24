@@ -7,7 +7,8 @@ const BottomChatInput = ({
   setMessage, 
   onSendMessage, 
   onKeyPress, 
-  placeholder = "Ask about your data..." 
+  placeholder = "Ask about your data...",
+  disabled = false // Add disabled prop
 }) => {
   return (
     <div className="bottom-chat-container">
@@ -19,13 +20,14 @@ const BottomChatInput = ({
           placeholder={placeholder}
           className="bottom-chat-input"
           rows="1"
+          disabled={disabled}
         />
-        <button className="mic-button">
+        <button className="mic-button" disabled={disabled}>
           <Mic className="mic-icon" />
         </button>
         <button
           onClick={onSendMessage}
-          disabled={!message.trim()}
+          disabled={!message.trim() || disabled}
           className="bottom-send-button"
         >
           <Send className="send-icon" />

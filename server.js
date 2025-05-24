@@ -202,7 +202,64 @@ app.post('/api/upload-file', upload.single('file'), async function(req, res) {
     }
 });
 
+// Add this route to your server.js file after the existing /api/upload-file route
 
+// New ask endpoint
+app.post('/api/route-ask', upload.none(), async function(req, res) {
+    try {
+        const { question, session_id, language } = req.body;
+
+        if (!question) {
+            return res.status(400).json({
+                success: false,
+                message: 'Question is required'
+            });
+        }
+
+        console.log('Ask request received:');
+        console.log('- Question:', question);
+        console.log('- Session ID:', session_id || 'session123');
+        console.log('- Language:', language || 'en-IN');
+
+        // Create FormData for the target API
+        const forwardFormData = new FormDataLib();
+        forwardFormData.append('question', question.trim());
+        forwardFormData.append('session_id', session_id || 'session123');
+        forwardFormData.append('language', language || 'en-IN');
+
+        console.log('Forwarding ask request to http://127.0.0.1:8000/ask');
+        
+        const forwardResponse = await axios.post('http://127.0.0.1:8000/ask', forwardFormData, {
+            headers: {
+                ...forwardFormData.getHeaders()
+            },
+            timeout: 30000,
+        });
+
+        console.log('Received response from target API:', forwardResponse.status);
+        return res.status(forwardResponse.status).json(forwardResponse.data);
+
+    } catch (error) {
+        console.error('Ask request error:', error);
+        
+        if (error.response) {
+            console.error('Target API error response:', error.response.status, error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        } else if (error.request) {
+            console.error('No response from target API:', error.message);
+            return res.status(503).json({
+                success: false,
+                message: 'Target service unavailable'
+            });
+        } else {
+            console.error('Unexpected error:', error.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error during ask request'
+            });
+        }
+    }
+});
 
 productRouter.get('/', async function view(req, res, next) {
     try {
