@@ -25,6 +25,7 @@ export const Home = () => {
   const { application_id, company_id } = useParams();
   const navigate = useNavigate(); // Add navigate hook
   const fileInputRef = useRef(null);
+  const [selectedLanguage, setSelectedLanguage] = useState('en-US');
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -126,7 +127,7 @@ export const Home = () => {
       const formData = new FormData();
       formData.append('question', currentMessage.trim());
       formData.append('session_id', 'session123');
-      formData.append('language', 'en-IN');
+      formData.append('language',  selectedLanguage);
   
       const response = await fetch(`${EXAMPLE_MAIN_URL}/api/route-ask`, {
         method: 'POST',
@@ -165,7 +166,7 @@ export const Home = () => {
       setIsAsking(false);
     }
   };
-
+console.log(selectedLanguage)
   const removeFile = () => {
     setUploadedFile(null);
     setFilePreview(null); // Also clear file preview
@@ -273,6 +274,7 @@ export const Home = () => {
         onKeyPress={handleKeyPress}
         placeholder={isAsking ? "Processing your question..." : "Ask about your data..."}
         disabled={isAsking || isUploading}
+        onLanguageChange={setSelectedLanguage} // Add this prop
       />
     </div>
   );

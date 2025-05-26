@@ -66,10 +66,10 @@
   /* Body Styles */
   .summary-body {
     padding: 20px;
-    min-height: 120px;
+    /* min-height: 120px; */
     display: flex;
     align-items: flex-start;
-    max-height: 400px;
+    max-height: 100%;
     overflow-y: auto;
   }
   

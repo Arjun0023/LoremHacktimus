@@ -13,7 +13,7 @@ const AskResults = () => {
   const navigate = useNavigate();
   const { company_id, application_id } = useParams();
   const [activeView, setActiveView] = useState('bar');
-  
+  const [selectedLanguage, setSelectedLanguage] = useState('en-US');
   // State for managing multiple Q&A pairs
   const [conversations, setConversations] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -52,7 +52,7 @@ const AskResults = () => {
         body: JSON.stringify({
           data: data.result,
           question: question,
-          language: 'en-IN'
+          language: selectedLanguage
         })
       });
 
@@ -89,7 +89,7 @@ const AskResults = () => {
       const formData = new FormData();
       formData.append('question', questionText);
       formData.append('session_id', 'session123');
-      formData.append('language', 'en-IN');
+      formData.append('language',selectedLanguage);
 
       const response = await fetch(`${window.location.origin}/api/route-ask`, {
         method: 'POST',
@@ -334,7 +334,8 @@ const AskResults = () => {
         onKeyPress={handleKeyPress}
         placeholder={isAsking ? "Processing your question..." : "Ask another question about your data..."}
         disabled={isAsking}
-      />
+        onLanguageChange={setSelectedLanguage} // Add this prop
+        />
     </div>
   );
 };
