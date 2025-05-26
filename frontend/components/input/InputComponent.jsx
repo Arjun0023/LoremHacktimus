@@ -20,14 +20,14 @@ const BottomChatInput = ({
           placeholder={placeholder}
           className="bottom-chat-input"
           rows="1"
-          disabled={disabled}
+          
         />
         <button className="mic-button" disabled={disabled}>
           <Mic className="mic-icon" />
         </button>
         <button
           onClick={onSendMessage}
-          disabled={!message.trim() || disabled}
+          
           className="bottom-send-button"
         >
           <Send className="send-icon" />

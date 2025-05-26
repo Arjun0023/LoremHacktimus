@@ -260,7 +260,60 @@ app.post('/api/route-ask', upload.none(), async function(req, res) {
         }
     }
 });
+app.post('/api/route-summarize', async function(req, res) {
+    try {
+        const { data, question, language } = req.body;
 
+        if (!data || !question) {
+            return res.status(400).json({
+                success: false,
+                message: 'Data and question are required'
+            });
+        }
+
+        console.log('Summarize request received:');
+        console.log('- Question:', question);
+        console.log('- Language:', language || 'en-IN');
+        console.log('- Data keys:', Object.keys(data));
+
+        // Forward the request to the target API as JSON
+        console.log('Forwarding summarize request to http://127.0.0.1:8000/summarize');
+        
+        const forwardResponse = await axios.post('http://127.0.0.1:8000/summarize', {
+            question: question,
+            data: data,
+            language: language || 'en-IN'
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            timeout: 30000,
+        });
+
+        console.log('Received response from target API:', forwardResponse.status);
+        return res.status(forwardResponse.status).json(forwardResponse.data);
+
+    } catch (error) {
+        console.error('Summarize request error:', error);
+        
+        if (error.response) {
+            console.error('Target API error response:', error.response.status, error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        } else if (error.request) {
+            console.error('No response from target API:', error.message);
+            return res.status(503).json({
+                success: false,
+                message: 'Target service unavailable'
+            });
+        } else {
+            console.error('Unexpected error:', error.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error during summarize request'
+            });
+        }
+    }
+});
 productRouter.get('/', async function view(req, res, next) {
     try {
         const {

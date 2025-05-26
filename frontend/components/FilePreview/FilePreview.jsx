@@ -77,7 +77,7 @@ const FilePreview = ({ filePreview, setMessage }) => {
 
             {/* Right Column - Suggested Questions */}
             <div className="preview-right">
-              {filePreview.insights?.question && (
+              {filePreview.insights.question && (
                 <div className="suggestions-section">
                   <h4 className="section-header">Suggested Questions</h4>
                   <div className="suggestions-grid">
