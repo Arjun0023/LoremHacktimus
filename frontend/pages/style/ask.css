@@ -608,28 +608,86 @@
   overflow: hidden;
 }
 
+/* Back Button Container */
 .back-button-container {
-  padding: 0.5rem;
+  padding: 16px 24px;
   border-bottom: 1px solid #e5e7eb;
   background: white;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
+/* Back Button Styling */
 .back-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  text-decoration: none;
 }
 
 .back-button:hover {
-  background: #e5e7eb;
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+/* Dashboard Button Styling */
+.dashboard-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #2563eb;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  text-decoration: none;
+}
+
+.dashboard-button:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .back-button-container {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .back-button,
+  .dashboard-button {
+    justify-content: center;
+    padding: 10px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .back-button,
+  .dashboard-button {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
 }
 
 .conversations-container {
@@ -736,5 +794,137 @@
   .view-toggle-btn,
   .action-button {
     padding: 6px;
+  }
+}
+/* Toast Notification Styles */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateX(400px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.toast-notification.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.toast-icon {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+/* Enhanced Add to Dashboard Button Styles */
+.add-dashboard-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.add-dashboard-btn:not(.added):hover {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+.add-dashboard-btn.added {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  opacity: 0.7;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.add-dashboard-btn.added::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 255, 255, 0.1) 3px,
+    rgba(255, 255, 255, 0.1) 6px
+  );
+  pointer-events: none;
+}
+
+.add-dashboard-btn.added:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Action Button Base Styles */
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  min-width: 40px;
+  height: 36px;
+}
+
+.action-button:hover:not(:disabled) {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Animation for successful addition */
+@keyframes successPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.add-dashboard-btn.added {
+  animation: successPulse 0.6s ease-out;
+}
+
+/* Responsive toast for mobile */
+@media (max-width: 768px) {
+  .toast-notification {
+    right: 16px;
+    left: 16px;
+    transform: translateY(-100px);
+  }
+  
+  .toast-notification.show {
+    transform: translateY(0);
   }
 }

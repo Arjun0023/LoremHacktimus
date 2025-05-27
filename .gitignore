@@ -3,6 +3,7 @@ node_modules
 /dist
 /build
 
+venv
 
 # local env files
 .env.local

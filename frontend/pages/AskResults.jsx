@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Table as TableIcon, BarChart3, PieChart, FileText, Eye, ToggleLeft, File } from 'lucide-react';
+import { ArrowLeft, Download, Table as TableIcon, BarChart3, PieChart, FileText, Eye, ToggleLeft, File, Plus, Check } from 'lucide-react';
 import BottomChatInput from '../components/input/InputComponent';
 import TableComponent from '../components/Table/TableComponent';
 import BarChartComponent from '../components/BarChart/BarChartComponent';
@@ -18,6 +18,11 @@ const AskResults = () => {
   const [conversations, setConversations] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isAsking, setIsAsking] = useState(false);
+  
+  // New states for dashboard functionality
+  const [addedToDashboard, setAddedToDashboard] = useState(new Set());
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
   
   // Initialize with first question/response from navigation state
   useEffect(() => {
@@ -40,6 +45,21 @@ const AskResults = () => {
       navigate(application_id ? `/company/${company_id}/application/${application_id}` : `/company/${company_id}/`);
     }
   }, [location.state, navigate, company_id, application_id]);
+
+  // Load existing dashboard items to check for duplicates
+  useEffect(() => {
+    const existingItems = JSON.parse(localStorage.getItem('dashboardItems') || '[]');
+    const existingIds = new Set(existingItems.map(item => item.question + item.timestamp));
+    setAddedToDashboard(existingIds);
+  }, []);
+
+  const showToastNotification = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
 
   const fetchSummary = async (conversationId, data, question) => {
     try {
@@ -167,6 +187,45 @@ const AskResults = () => {
     URL.revokeObjectURL(url);
   };
 
+  const addToDashboard = (conversation) => {
+    const conversationKey = conversation.question + conversation.timestamp;
+    
+    // Check if already added
+    if (addedToDashboard.has(conversationKey)) {
+      showToastNotification('This chart is already in your dashboard');
+      return;
+    }
+
+    const dashboardItem = {
+      id: Date.now(),
+      question: conversation.question,
+      data: conversation.data,
+      summary: conversation.summary,
+      timestamp: conversation.timestamp,
+      addedAt: new Date()
+    };
+    
+    try {
+      const existingItems = JSON.parse(localStorage.getItem('dashboardItems') || '[]');
+      const updatedItems = [...existingItems, dashboardItem];
+      localStorage.setItem('dashboardItems', JSON.stringify(updatedItems));
+      
+      // Update state to mark as added
+      setAddedToDashboard(prev => new Set([...prev, conversationKey]));
+      
+      // Show success toast
+      showToastNotification('Chart added to dashboard successfully!');
+    } catch (error) {
+      console.error('Error adding to dashboard:', error);
+      showToastNotification('Failed to add chart to dashboard');
+    }
+  };
+
+  const isAddedToDashboard = (conversation) => {
+    const conversationKey = conversation.question + conversation.timestamp;
+    return addedToDashboard.has(conversationKey);
+  };
+  
   const renderContent = (data, viewType = activeView) => {
     switch (viewType) {
       case 'table':
@@ -191,11 +250,23 @@ const AskResults = () => {
 
   return (
     <div className="ask-results-container-new">
+      {/* Toast Notification */}
+      <div className={`toast-notification ${showToast ? 'show' : ''}`}>
+        <div className="toast-content">
+          <Check size={18} className="toast-icon" />
+          <span>{toastMessage}</span>
+        </div>
+      </div>
+
       {/* Back Button */}
       <div className="back-button-container">
         <button onClick={handleBackClick} className="back-button">
           <ArrowLeft size={18} />
           Back to Upload
+        </button>
+        <button onClick={() => navigate(application_id ? `/company/${company_id}/application/${application_id}/dashboard` : `/company/${company_id}/dashboard`)} className="dashboard-button">
+          <Eye size={18} />
+          Go to Dashboard
         </button>
       </div>
 
@@ -229,6 +300,14 @@ const AskResults = () => {
                 </div>
               </div>
               <div className="question-actions">
+                <button 
+                  className={`action-button add-dashboard-btn ${isAddedToDashboard(conversation) ? 'added' : ''}`}
+                  onClick={() => addToDashboard(conversation)}
+                  disabled={isAddedToDashboard(conversation)}
+                  title={isAddedToDashboard(conversation) ? "Already added to dashboard" : "Add to Dashboard"}
+                >
+                  {isAddedToDashboard(conversation) ? <Check size={18} /> : <Plus size={18} />}
+                </button>
                 <button 
                   className={`view-toggle-btn ${activeView === 'bar' ? 'active' : ''}`}
                   onClick={() => setActiveView('bar')}
@@ -334,8 +413,8 @@ const AskResults = () => {
         onKeyPress={handleKeyPress}
         placeholder={isAsking ? "Processing your question..." : "Ask another question about your data..."}
         disabled={isAsking}
-        onLanguageChange={setSelectedLanguage} // Add this prop
-        />
+        onLanguageChange={setSelectedLanguage}
+      />
     </div>
   );
 };
