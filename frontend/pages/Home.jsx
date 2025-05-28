@@ -206,6 +206,21 @@ console.log(selectedLanguage)
               <p className="subtitle">Upload Excel or CSV files and get AI-powered insights</p>
             </div>
           </div>
+          {/* My Dashboards Button */}
+<div className="my-dashboards-section">
+  <button 
+    onClick={() => {
+      const dashboardPath = application_id 
+        ? `/company/${company_id}/application/${application_id}/saved-dashboards`
+        : `/company/${company_id}/saved-dashboards`;
+      navigate(dashboardPath);
+    }}
+    className="my-dashboards-btn"
+  >
+    <BarChart3 className="btn-icon" />
+    My Dashboards
+  </button>
+</div>
         </div>
       </div>
   

@@ -9,9 +9,14 @@ import './style/dashboard.css';
 
 const Dashboard = () => {
   const { company_id, application_id } = useParams();
+  console.log('Company ID:', company_id, 'Application ID:', application_id);
   const navigate = useNavigate();
   const [dashboardItems, setDashboardItems] = useState([]);
   const [selectedSummary, setSelectedSummary] = useState(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [dashboardName, setDashboardName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
 
   useEffect(() => {
     loadDashboardItems();
@@ -52,6 +57,53 @@ const Dashboard = () => {
       item.id === itemId ? { ...item, activeView: viewType } : item
     ));
   };
+const handleSaveDashboard = () => {
+    setShowSaveModal(true);
+};
+
+const saveDashboardToMongoDB = async () => {
+    if (!dashboardName.trim()) {
+        alert('Please enter a dashboard name');
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        const response = await fetch('/api/save-dashboard', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-company-id': company_id,
+            },
+            body: JSON.stringify({
+                company_id,
+                application_id,
+                dashboard_name: dashboardName.trim(),
+                dashboard_items: dashboardItems
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Dashboard saved successfully!');
+            setShowSaveModal(false);
+            setDashboardName('');
+        } else {
+            alert('Failed to save dashboard: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Save dashboard error:', error);
+        alert('Error saving dashboard. Please try again.');
+    } finally {
+        setIsSaving(false);
+    }
+};
+
+const closeSaveModal = () => {
+    setShowSaveModal(false);
+    setDashboardName('');
+};
 
   const renderChart = (item) => {
     const viewType = item.activeView || 'bar';
@@ -102,11 +154,15 @@ const Dashboard = () => {
           <span className="dashboard-count">{dashboardItems.length} items</span>
         </div>
         <div className="header-actions">
-          <button onClick={clearAllItems} className="clear-all-btn">
-            <Trash2 size={16} />
-            Clear All
-          </button>
-        </div>
+    <button onClick={handleSaveDashboard} className="save-dashboard-btn">
+        <FileText size={16} />
+        Save Dashboard
+    </button>
+    <button onClick={clearAllItems} className="clear-all-btn">
+        <Trash2 size={16} />
+        Clear All
+    </button>
+</div>
       </div>
 
       {/* Dashboard Grid */}
@@ -183,32 +239,48 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Summary Modal */}
-      {selectedSummary && (
-        <div className="summary-modal-overlay" onClick={closeSummary}>
-          <div className="summary-modal" onClick={(e) => e.stopPropagation()}>
+      {/* Save Dashboard Modal */}
+{showSaveModal && (
+    <div className="summary-modal-overlay" onClick={closeSaveModal}>
+        <div className="summary-modal" onClick={(e) => e.stopPropagation()}>
             <div className="summary-modal-header">
-              <h3>Analysis Summary</h3>
-              <button className="close-btn" onClick={closeSummary}>
-                <X size={20} />
-              </button>
+                <h3>Save Dashboard</h3>
+                <button className="close-btn" onClick={closeSaveModal}>
+                    <X size={20} />
+                </button>
             </div>
             <div className="summary-modal-content">
-              <div className="summary-question">
-                <strong>Question:</strong> {selectedSummary.question}
-              </div>
-              <div className="summary-wrapper">
-                <SummaryComponent 
-                  summary={selectedSummary.summary}
-                  summaryLoading={false}
-                  summaryError={null}
-                  onRetry={() => {}}
-                />
-              </div>
+                <div className="save-dashboard-form">
+                    <label htmlFor="dashboard-name">Dashboard Name:</label>
+                    <input
+                        id="dashboard-name"
+                        type="text"
+                        value={dashboardName}
+                        onChange={(e) => setDashboardName(e.target.value)}
+                        placeholder="Enter dashboard name..."
+                        disabled={isSaving}
+                    />
+                    <div className="save-dashboard-actions">
+                        <button 
+                            onClick={closeSaveModal} 
+                            className="cancel-btn"
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={saveDashboardToMongoDB} 
+                            className="save-btn"
+                            disabled={isSaving || !dashboardName.trim()}
+                        >
+                            {isSaving ? 'Saving...' : 'Save Dashboard'}
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      )}
+    </div>
+)}
     </div>
   );
 };

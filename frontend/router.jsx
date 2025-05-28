@@ -3,6 +3,7 @@ import App from "./App";
 import NotFound from "./pages/NotFound";
 import AskResults from "./pages/AskResults"; // Import the new Ask Results component
 import Dashboard from "./pages/Dashboard"; // Import the Dashboard component
+import SavedDashboards from "./pages/SavedDashboards";
 
 const router = createBrowserRouter([
   {
@@ -32,6 +33,14 @@ const router = createBrowserRouter([
   {
     path: "/company/:company_id/application/:application_id/dashboard",
     element: <Dashboard />,
+  },
+  {
+    path: "/company/:company_id/saved-dashboards",
+    element: <SavedDashboards />,
+  },
+  {
+    path: "/company/:company_id/application/:application_id/saved-dashboards",
+    element: <SavedDashboards />,
   },
 ]);
 

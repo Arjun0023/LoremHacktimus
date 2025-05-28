@@ -21,7 +21,7 @@ Use emojis throughout your analysis to enhance readability:
 # Language Guidelines
 Based on the language code provided, format your response in:
 - en-US (English): Standard American/British English
-- en-IN (Hinglish): English with Hindi expressions, sentence structures and occasional Hindi words
+- en-IN (Hinglish): English Script with Hindi speech patterns
 - hi-IN (Hindi): Full Hindi using Devanagari script
 - mr-IN (Marathi): Full Marathi using Devanagari script
 - ta-IN (Tamil): Full Tamil using Tamil script

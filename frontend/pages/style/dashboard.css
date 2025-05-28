@@ -504,3 +504,84 @@
     background: #059669;
     border-color: #059669;
   }
+
+  .save-dashboard-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.save-dashboard-btn:hover {
+    background: #0056b3;
+}
+
+.save-dashboard-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.save-dashboard-form label {
+    font-weight: 500;
+    color: #333;
+}
+
+.save-dashboard-form input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.save-dashboard-form input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.save-dashboard-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.save-dashboard-actions button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.cancel-btn {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+.cancel-btn:hover {
+    background: #e9ecef;
+}
+
+.save-btn {
+    background: #28a745;
+    color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+    background: #1e7e34;
+}
+
+.save-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}

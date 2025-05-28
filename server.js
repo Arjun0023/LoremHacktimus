@@ -13,6 +13,7 @@ const sqliteInstance = new sqlite3.Database('session_storage.db');
 const productRouter = express.Router();
 const FormDataLib = require('form-data'); // Rename to avoid conflicts
 const axios = require('axios');
+const mongoose = require('mongoose');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for this dummy endpoint
@@ -39,7 +40,26 @@ const upload = multer({
         }
     }
 });
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dashboard_db';
 
+mongoose.connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Dashboard Schema
+const dashboardSchema = new mongoose.Schema({
+    company_id: { type: String, required: true },
+    application_id: { type: String },
+    dashboard_name: { type: String, required: true },
+    dashboard_items: { type: Array, required: true },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+});
+
+const Dashboard = mongoose.model('Dashboard', dashboardSchema);
 const fdkExtension = setupFdk({
     api_key: process.env.EXTENSION_API_KEY,
     api_secret: process.env.EXTENSION_API_SECRET,
@@ -105,7 +125,142 @@ app.post('/api/webhook-events', async function(req, res) {
       return res.status(500).json({"success": false});
     }
 })
+// Save dashboard endpoint
+app.post('/api/save-dashboard', async function(req, res) {
+    try {
+        const { company_id, application_id, dashboard_name, dashboard_items } = req.body;
 
+        if (!company_id || !dashboard_name || !dashboard_items) {
+            return res.status(400).json({
+                success: false,
+                message: 'Company ID, dashboard name, and dashboard items are required'
+            });
+        }
+
+        console.log('Save dashboard request received:');
+        console.log('- Company ID:', company_id);
+        console.log('- Application ID:', application_id);
+        console.log('- Dashboard Name:', dashboard_name);
+        console.log('- Items Count:', dashboard_items.length);
+
+        // Create new dashboard
+        const newDashboard = new Dashboard({
+            company_id,
+            application_id,
+            dashboard_name,
+            dashboard_items,
+            created_at: new Date(),
+            updated_at: new Date()
+        });
+
+        const savedDashboard = await newDashboard.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Dashboard saved successfully',
+            dashboard_id: savedDashboard._id
+        });
+
+    } catch (error) {
+        console.error('Save dashboard error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while saving dashboard'
+        });
+    }
+});
+
+// Get saved dashboards endpoint
+app.get('/api/get-dashboards/:company_id', async function(req, res) {
+    try {
+        const { company_id } = req.params;
+        const { application_id } = req.query;
+
+        const query = { company_id };
+        if (application_id) {
+            query.application_id = application_id;
+        }
+
+        const dashboards = await Dashboard.find(query)
+            .sort({ updated_at: -1 })
+            .select('_id dashboard_name created_at updated_at dashboard_items');
+
+        return res.status(200).json({
+            success: true,
+            dashboards
+        });
+
+    } catch (error) {
+        console.error('Get dashboards error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching dashboards'
+        });
+    }
+});
+// Get specific dashboard by ID
+app.get('/api/get-dashboard/:dashboard_id', async function(req, res) {
+    try {
+        const { dashboard_id } = req.params;
+
+        const dashboard = await Dashboard.findById(dashboard_id);
+
+        if (!dashboard) {
+            return res.status(404).json({
+                success: false,
+                message: 'Dashboard not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            dashboard: {
+                id: dashboard._id,
+                dashboard_name: dashboard.dashboard_name,
+                company_id: dashboard.company_id,
+                application_id: dashboard.application_id,
+                dashboard_items: dashboard.dashboard_items,
+                created_at: dashboard.created_at,
+                updated_at: dashboard.updated_at
+            }
+        });
+
+    } catch (error) {
+        console.error('Get dashboard error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching dashboard'
+        });
+    }
+});
+
+// Delete dashboard endpoint
+app.delete('/api/delete-dashboard/:dashboard_id', async function(req, res) {
+    try {
+        const { dashboard_id } = req.params;
+
+        const deletedDashboard = await Dashboard.findByIdAndDelete(dashboard_id);
+
+        if (!deletedDashboard) {
+            return res.status(404).json({
+                success: false,
+                message: 'Dashboard not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Dashboard deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Delete dashboard error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while deleting dashboard'
+        });
+    }
+});
 // New file upload endpoint
 app.post('/api/upload-file', upload.single('file'), async function(req, res) {
     try {
