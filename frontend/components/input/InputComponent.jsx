@@ -19,7 +19,8 @@ const BottomChatInput = ({
   onKeyPress, 
   placeholder = "Ask about your data...",
   disabled = false,
-  onLanguageChange // New prop to notify parent of language changes
+  onLanguageChange,
+  isAsking = false // <-- Add this prop
 }) => {
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognitionLanguage, setRecognitionLanguage] = useState('en-IN');
@@ -121,13 +122,20 @@ const BottomChatInput = ({
           {isRecognizing ? <MicOff className="mic-icon" /> : <Mic className="mic-icon" />}
         </button>
         
-        <button
-          onClick={onSendMessage}
-          className="bottom-send-button"
-          disabled={disabled || !message.trim()}
-        >
-          <Send className="send-icon" />
-        </button>
+        {/* Show spinner instead of send button when asking */}
+        {isAsking ? (
+          <div className="bottom-send-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 3 }}></div>
+          </div>
+        ) : (
+          <button
+            onClick={onSendMessage}
+            className="bottom-send-button"
+            disabled={disabled || !message.trim()}
+          >
+            <Send className="send-icon" />
+          </button>
+        )}
       </div>
 
       {/* Language selector dropdown */}
