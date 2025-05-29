@@ -97,18 +97,18 @@ export const Home = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-  
+
     const userMessage = {
       type: 'user',
       content: message,
       timestamp: new Date()
     };
-  
+
     setChatHistory(prev => [...prev, userMessage]);
     const currentMessage = message;
     setMessage("");
     setIsAsking(true);
-  
+
     if (!uploadedFile) {
       setTimeout(() => {
         const aiResponse = {
@@ -121,14 +121,16 @@ export const Home = () => {
       }, 1000);
       return;
     }
-  
+
     try {
       // Create FormData instead of JSON
       const formData = new FormData();
       formData.append('question', currentMessage.trim());
       formData.append('session_id', 'session123');
       formData.append('language',  selectedLanguage);
-  
+
+      setPageLoading(true); // <-- Show spinner
+
       const response = await fetch(`${EXAMPLE_MAIN_URL}/api/route-ask`, {
         method: 'POST',
         headers: {
@@ -137,11 +139,11 @@ export const Home = () => {
         },
         body: formData // Send FormData instead of JSON
       });
-  
+
       if (response.ok) {
         const result = await response.json();
         console.log('Ask API response:', result);
-        
+
         const askPath = application_id 
           ? `/company/${company_id}/application/${application_id}/ask`
           : `/company/${company_id}/ask`;
@@ -152,6 +154,7 @@ export const Home = () => {
             question: currentMessage
           }
         });
+        // No need to setPageLoading(false) because component will unmount
       } else {
         throw new Error('Ask request failed');
       }
@@ -162,11 +165,13 @@ export const Home = () => {
         content: `❌ Failed to process your question. Please try again.`,
         timestamp: new Date()
       }]);
+      setPageLoading(false); // Hide spinner on error
     } finally {
       setIsAsking(false);
     }
   };
-console.log(selectedLanguage)
+  console.log(selectedLanguage);
+
   const removeFile = () => {
     setUploadedFile(null);
     setFilePreview(null); // Also clear file preview
@@ -191,6 +196,8 @@ console.log(selectedLanguage)
       handleSendMessage();
     }
   };
+
+
 
   return (
     <div className="ai-saas-container">
@@ -289,7 +296,8 @@ console.log(selectedLanguage)
         onKeyPress={handleKeyPress}
         placeholder={isAsking ? "Processing your question..." : "Ask about your data..."}
         disabled={isAsking || isUploading}
-        onLanguageChange={setSelectedLanguage} // Add this prop
+        onLanguageChange={setSelectedLanguage}
+        isAsking={isAsking} 
       />
     </div>
   );
