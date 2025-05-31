@@ -57,7 +57,7 @@ def get_genai_client():
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         return model
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize Gemini client: {str(e)}")
@@ -68,7 +68,7 @@ def get_genai_client_thinkingmodel():
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         return model
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize Gemini client: {str(e)}")

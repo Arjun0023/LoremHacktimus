@@ -1,8 +1,9 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import './BarChartComponent.css';
 
 const BarChartComponent = ({ data }) => {
+  console.log("BarChartComponent data:", data);
   if (!data || !Array.isArray(data) || data.length === 0) {
     return <div className="no-chart-data">No chart data available</div>;
   }
@@ -74,16 +75,13 @@ const BarChartComponent = ({ data }) => {
             />
             <Bar 
               dataKey={dataKey} 
-              fill="url(#barGradient)"
               radius={[4, 4, 0, 0]}
               name={dataKey.charAt(0).toUpperCase() + dataKey.slice(1)}
-            />
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#667eea" />
-                <stop offset="100%" stopColor="#764ba2" />
-              </linearGradient>
-            </defs>
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

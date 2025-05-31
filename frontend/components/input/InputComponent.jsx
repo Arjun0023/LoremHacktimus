@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Mic, MicOff, Send, Languages } from 'lucide-react';
+import { Mic, MicOff, Send, Languages, Loader2  } from 'lucide-react';
 import './BottomChatInput.css';
 
 const languageOptions = [
@@ -124,18 +124,21 @@ const BottomChatInput = ({
         
         {/* Show spinner instead of send button when asking */}
         {isAsking ? (
-          <div className="bottom-send-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 3 }}></div>
-          </div>
-        ) : (
-          <button
-            onClick={onSendMessage}
-            className="bottom-send-button"
-            disabled={disabled || !message.trim()}
-          >
-            <Send className="send-icon" />
-          </button>
-        )}
+            <button
+              className="bottom-send-button"
+              disabled={true}
+            >
+              <Loader2 className="send-icon animate-spin" />
+            </button>
+          ) : (
+            <button
+              onClick={onSendMessage}
+              className="bottom-send-button"
+              disabled={disabled || !message.trim()}
+            >
+              <Send className="send-icon" />
+            </button>
+          )}
       </div>
 
       {/* Language selector dropdown */}

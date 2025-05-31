@@ -864,3 +864,42 @@
     font-size: 13px;
   }
 }
+.my-dashboards-section {
+  margin-bottom: 0px;
+}
+
+.my-dashboards-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: left;
+}
+
+.my-dashboards-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: white;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px -2px rgba(37, 99, 235, 0.3);
+}
+
+.my-dashboards-btn .btn-icon {
+  width: 20px;
+  height: 20px;
+  transition: color 0.3s ease;
+}
+
+.my-dashboards-btn:hover .btn-icon {
+  color: white;
+}

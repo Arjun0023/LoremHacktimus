@@ -14,7 +14,7 @@ const SavedDashboards = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+console.log(selectedDashboard, dashboards)
   useEffect(() => {
     fetchDashboards();
   }, [company_id, application_id]);
