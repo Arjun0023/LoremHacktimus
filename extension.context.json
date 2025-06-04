@@ -1,6 +1,7 @@
 {
+    "DEVELOPMENT_COMPANY": 10304,
     "EXTENSION_API_KEY": "682b47be063bb1688fdcf9c6",
     "EXTENSION_API_SECRET": "8yqfF7mZciEeX8E",
-    "DEVELOPMENT_COMPANY": 10304,
-    "CURRENT_ENV": "api.fynd.com"
+    "CURRENT_ENV": "api.fynd.com",
+    "EXTENSION_BASE_URL": "https://talks-cab-ac-reliance.trycloudflare.com"
 }

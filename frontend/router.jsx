@@ -7,7 +7,7 @@ import SavedDashboards from "./pages/SavedDashboards";
 
 const router = createBrowserRouter([
   {
-    path: "/company/:company_id/",
+    path: "/company/:company_id",
     element: <App />,
   },
   {

@@ -21,11 +21,16 @@ export const Home = () => {
       timestamp: new Date()
     }
   ]);
+  const [orderPreview, setOrderPreview] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
-  const { application_id, company_id } = useParams();
+  const { company_id } = useParams();
+  const application_id = '682b353767354dde698f64a9'; // Get application_id from URL params
+  console.log('Company ID:', company_id, 'Application ID:', application_id);
   const navigate = useNavigate(); // Add navigate hook
   const fileInputRef = useRef(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en-US');
+
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -175,6 +180,7 @@ export const Home = () => {
   const removeFile = () => {
     setUploadedFile(null);
     setFilePreview(null); // Also clear file preview
+    setOrderPreview(null)
     setChatHistory(prev => [...prev, {
       type: 'system',
       content: 'File removed. Upload a new file to continue analysis.',
@@ -197,7 +203,61 @@ export const Home = () => {
     }
   };
 
-
+  const handleGetOrders = async () => {
+    if (!application_id) {
+      console.log('No application_id available');
+      return;
+    }
+  
+    setIsLoadingOrders(true);
+    console.log('Fetching orders for application_id:', application_id);
+    try {
+      const response = await fetch(`${EXAMPLE_MAIN_URL}/api/products/orders/${application_id}?pageNo=1&pageSize=10`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-company-id': company_id,
+        }
+      });
+  
+      if (response.ok) {
+        const ordersData = await response.json();
+        console.log('Orders API Response:', ordersData);
+        
+        // Set both order preview and file preview
+        setOrderPreview(ordersData);
+        setFilePreview(ordersData.file_preview);
+        
+        // Set uploaded file info to indicate orders are loaded
+        setUploadedFile({
+          name: ordersData.file_preview.filename,
+          size: 0, // Orders don't have file size
+          type: 'application/json',
+          isOrdersData: true // Flag to identify this is orders data
+        });
+        
+        // Add success message to chat
+        setChatHistory(prev => [...prev, {
+          type: 'system',
+          content: `✅ Fetched ${ordersData?.file_preview?.num_rows_total || 0} orders successfully! You can now ask questions about your order data.`,
+          timestamp: new Date()
+        }]);
+      } else {
+        throw new Error(`API call failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Orders API Error:', error);
+      setChatHistory(prev => [...prev, {
+        type: 'system',
+        content: `❌ Failed to fetch orders: ${error.message}`,
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+  
+  
 
   return (
     <div className="ai-saas-container">
@@ -227,6 +287,18 @@ export const Home = () => {
     <BarChart3 className="btn-icon" />
     My Dashboards
   </button>
+  
+</div>
+<div className="my-dashboards-section">
+          <button 
+  onClick={handleGetOrders}
+  disabled={isLoadingOrders || !application_id}
+  className="my-dashboards-btn"
+  style={{ marginLeft: '10px' }}
+>
+  <FileText className="btn-icon" />
+  {isLoadingOrders ? 'Loading...' : 'Get Orders'}
+</button>
 </div>
         </div>
       </div>
@@ -244,7 +316,6 @@ export const Home = () => {
             removeFile={removeFile}
             formatFileSize={formatFileSize}
           />
-          
           {/* Stats Cards */}
           <div className="stats-section">
             <div className="stat-card">

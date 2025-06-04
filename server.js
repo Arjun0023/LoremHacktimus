@@ -7,6 +7,7 @@ const sqlite3 = require('sqlite3').verbose();
 const serveStatic = require("serve-static");
 const { readFileSync } = require('fs');
 const multer = require('multer'); // Add this for file upload handling
+const { PlatformClient } = require("@gofynd/fdk-client-javascript");
 const { setupFdk } = require("@gofynd/fdk-extension-javascript/express");
 const { SQLiteStorage } = require("@gofynd/fdk-extension-javascript/express/storage");
 const sqliteInstance = new sqlite3.Database('session_storage.db');
@@ -60,6 +61,59 @@ const dashboardSchema = new mongoose.Schema({
 });
 
 const Dashboard = mongoose.model('Dashboard', dashboardSchema);
+const orderSchema = new mongoose.Schema({
+    company_id: { type: String, required: true },
+    application_id: { type: String },
+    order_id: { type: String, required: true, unique: true },
+    order_created: { type: Date },
+    shipment_status: { type: String },
+    operational_status: { type: String },
+    payment_mode: { type: String },
+    user_info: {
+        name: { type: String },
+        mobile: { type: String },
+        email: { type: String },
+        gender: { type: String }
+    },
+    prices: {
+        amount_paid: { type: Number },
+        refund_amount: { type: Number },
+        price_marked: { type: Number },
+        discount: { type: Number },
+        delivery_charge: { type: Number },
+        coupon_value: { type: Number },
+        price_effective: { type: Number }
+    },
+    total_order_value: { type: Number },
+    currency: {
+        currency_code: { type: String },
+        currency_symbol: { type: String }
+    },
+    breakup_values: [{ 
+        name: { type: String },
+        display: { type: String },
+        value: { type: String }
+    }],
+    shipments: [{
+        shipment_id: { type: String },
+        shipment_status: { type: String },
+        operational_status: { type: String },
+        total_bags: { type: Number },
+        total_items: { type: Number },
+        prices: {
+            amount_paid: { type: Number },
+            refund_amount: { type: Number },
+            price_marked: { type: Number },
+            discount: { type: Number }
+        }
+    }],
+    raw_data: { type: Object }, // Store complete original data
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+});
+
+const Order = mongoose.model('Order', orderSchema);
+
 const fdkExtension = setupFdk({
     api_key: process.env.EXTENSION_API_KEY,
     api_secret: process.env.EXTENSION_API_SECRET,
@@ -259,6 +313,175 @@ app.delete('/api/delete-dashboard/:dashboard_id', async function(req, res) {
             success: false,
             message: 'Internal server error while deleting dashboard'
         });
+    }
+});
+productRouter.get('/orders/:application_id', async function view(req, res, next) {
+    try {
+        const { platformClient } = req;
+        const { application_id } = req.params;
+        const { pageNo = 1, pageSize = 10, company_id } = req.query;
+
+        console.log('Fetching orders for application:', application_id);
+        
+        // Get orders from platform API
+        const orderParams = {
+            pageNo: parseInt(pageNo),
+            pageSize: parseInt(pageSize),
+        };
+
+        const data = await platformClient.order.getOrders(orderParams);
+        
+        if (data && data.items && data.items.length > 0) {
+            console.log(`Processing ${data.items.length} orders for MongoDB insertion`);
+            
+            // Process and insert orders into MongoDB
+            const ordersToInsert = [];
+            const processedOrders = [];
+            
+            for (const orderData of data.items) {
+                try {
+                    // Create structured order object
+                    const orderDoc = {
+                        company_id: company_id || req.query.company_id || 'unknown',
+                        application_id: application_id,
+                        order_id: orderData.order_id,
+                        order_created: orderData.order_created ? new Date(orderData.order_created) : new Date(),
+                        shipment_status: orderData.shipments?.[0]?.shipment_status || 'unknown',
+                        operational_status: orderData.shipments?.[0]?.operational_status || 'unknown',
+                        payment_mode: orderData.payment_mode,
+                        user_info: {
+                            name: orderData.user_info?.name,
+                            mobile: orderData.user_info?.mobile,
+                            email: orderData.user_info?.email,
+                            gender: orderData.user_info?.gender
+                        },
+                        prices: {
+                            amount_paid: orderData.prices?.amount_paid || 0,
+                            refund_amount: orderData.prices?.refund_amount || 0,
+                            price_marked: orderData.prices?.price_marked || 0,
+                            discount: orderData.prices?.discount || 0,
+                            delivery_charge: orderData.prices?.delivery_charge || 0,
+                            coupon_value: orderData.prices?.coupon_value || 0,
+                            price_effective: orderData.prices?.price_effective || 0
+                        },
+                        total_order_value: orderData.total_order_value || 0,
+                        currency: {
+                            currency_code: orderData.currency?.currency_code || 'INR',
+                            currency_symbol: orderData.currency?.currency_symbol || '₹'
+                        },
+                        breakup_values: orderData.breakup_values || [],
+                        shipments: orderData.shipments?.map(shipment => ({
+                            shipment_id: shipment.shipment_id,
+                            shipment_status: shipment.shipment_status,
+                            operational_status: shipment.operational_status,
+                            total_bags: shipment.total_bags,
+                            total_items: shipment.total_items,
+                            prices: {
+                                amount_paid: shipment.prices?.amount_paid || 0,
+                                refund_amount: shipment.prices?.refund_amount || 0,
+                                price_marked: shipment.prices?.price_marked || 0,
+                                discount: shipment.prices?.discount || 0
+                            }
+                        })) || [],
+                        raw_data: orderData, // Store complete original data
+                        updated_at: new Date()
+                    };
+
+                    ordersToInsert.push(orderDoc);
+                    
+                    // Create flattened row for preview (similar to CSV structure)
+                    const flattenedOrder = {
+                        order_id: orderData.order_id,
+                        order_created: orderData.order_created,
+                        customer_name: orderData.user_info?.name || 'N/A',
+                        customer_mobile: orderData.user_info?.mobile || 'N/A',
+                        payment_mode: orderData.payment_mode || 'N/A',
+                        total_amount: orderData.total_order_value || 0,
+                        amount_paid: orderData.prices?.amount_paid || 0,
+                        discount: orderData.prices?.discount || 0,
+                        delivery_charge: orderData.prices?.delivery_charge || 0,
+                        shipment_status: orderData.shipments?.[0]?.shipment_status || 'unknown',
+                        operational_status: orderData.shipments?.[0]?.operational_status || 'unknown',
+                        currency: orderData.currency?.currency_code || 'INR',
+                        total_items: orderData.shipments?.[0]?.total_items || 0,
+                        coupon_value: orderData.prices?.coupon_value || 0
+                    };
+                    
+                    processedOrders.push(flattenedOrder);
+                    
+                } catch (processError) {
+                    console.error('Error processing order:', orderData.order_id, processError);
+                }
+            }
+            
+            // Bulk insert/update orders in MongoDB
+            if (ordersToInsert.length > 0) {
+                try {
+                    const bulkOps = ordersToInsert.map(order => ({
+                        updateOne: {
+                            filter: { order_id: order.order_id, company_id: order.company_id },
+                            update: { $set: order },
+                            upsert: true
+                        }
+                    }));
+                    
+                    const result = await Order.bulkWrite(bulkOps);
+                    console.log(`MongoDB operation result: ${result.upsertedCount} inserted, ${result.modifiedCount} updated`);
+                } catch (mongoError) {
+                    console.error('MongoDB insertion error:', mongoError);
+                }
+            }
+            
+            // Generate FilePreview compatible response
+            const columns = [
+                'order_id', 'order_created', 'customer_name', 'customer_mobile', 
+                'payment_mode', 'total_amount', 'amount_paid', 'discount', 
+                'delivery_charge', 'shipment_status', 'operational_status', 
+                'currency', 'total_items', 'coupon_value'
+            ];
+            
+            const previewResponse = {
+                success: true,
+                original_data: data, // Include original API response
+                file_preview: {
+                    filename: `Orders_${application_id}_${new Date().toISOString().split('T')[0]}.json`,
+                    num_rows_total: processedOrders.length,
+                    columns: columns,
+                    first_10_rows: processedOrders.slice(0, 10),
+                    insights: {
+                        question: [
+                            "What is the total revenue from all orders?",
+                            "Which payment mode is most popular?",
+                            "How many orders are in 'placed' status?",
+                            "What is the average order value?",
+                            "Which customers have the highest order values?",
+                            "What is the total discount given across all orders?",
+                            "How many orders have delivery charges?",
+                            "What is the distribution of orders by shipment status?"
+                        ]
+                    }
+                },
+                mongodb_stats: {
+                    total_processed: ordersToInsert.length,
+                    collection_name: 'orders'
+                }
+            };
+            
+            return res.json(previewResponse);
+            
+        } else {
+            // No orders found
+            return res.json({
+                success: true,
+                original_data: data,
+                file_preview: null,
+                message: 'No orders found'
+            });
+        }
+        
+    } catch (err) {
+        console.error('Get orders error:', err);
+        next(err);
     }
 });
 // New file upload endpoint
@@ -501,7 +724,81 @@ platformApiRoutes.use('/products', productRouter);
 // If you are adding routes outside of the /api path, 
 // remember to also add a proxy rule for them in /frontend/vite.config.js
 app.use('/api', platformApiRoutes);
+const cleanupOrderData = async () => {
+    try {
+        console.log('Starting order data cleanup...');
+        
+        // Get count before deletion for logging
+        const orderCount = await Order.countDocuments();
+        console.log(`Found ${orderCount} orders to delete`);
+        
+        if (orderCount > 0) {
+            // Delete all orders
+            const deleteResult = await Order.deleteMany({});
+            console.log(`Successfully deleted ${deleteResult.deletedCount} orders from MongoDB`);
+        } else {
+            console.log('No orders found to delete');
+        }
+        
+        // Optional: You can also clean up dashboards if needed
+        // const dashboardCount = await Dashboard.countDocuments();
+        // console.log(`Found ${dashboardCount} dashboards - keeping them for persistence`);
+        
+    } catch (error) {
+        console.error('Error during order data cleanup:', error);
+    }
+};
 
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} received. Starting graceful shutdown...`);
+    
+    try {
+        // Cleanup order data
+        await cleanupOrderData();
+        
+        // Close MongoDB connection
+        if (mongoose.connection.readyState === 1) {
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed');
+        }
+        
+        // Close SQLite database
+        if (sqliteInstance) {
+            sqliteInstance.close((err) => {
+                if (err) {
+                    console.error('Error closing SQLite database:', err);
+                } else {
+                    console.log('SQLite database connection closed');
+                }
+            });
+        }
+        
+        console.log('Graceful shutdown completed');
+        process.exit(0);
+        
+    } catch (error) {
+        console.error('Error during graceful shutdown:', error);
+        process.exit(1);
+    }
+};
+
+// Register shutdown event listeners
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // For nodemon restarts
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+    console.error('Uncaught Exception:', error);
+    await gracefulShutdown('UNCAUGHT_EXCEPTION');
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    await gracefulShutdown('UNHANDLED_REJECTION');
+});
 // Serve the React app for all other routes
 app.get('*', (req, res) => {
     return res
