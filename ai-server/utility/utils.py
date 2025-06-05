@@ -5,6 +5,10 @@ import os
 from fastapi import HTTPException
 import google.generativeai as genai
 import re
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -52,7 +56,7 @@ def validate_code(code: str) -> bool:
         return False
 
 def get_genai_client():
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
     try:
@@ -63,7 +67,7 @@ def get_genai_client():
         raise HTTPException(status_code=500, detail=f"Failed to initialize Gemini client: {str(e)}")
 
 def get_genai_client_thinkingmodel():
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
     try:

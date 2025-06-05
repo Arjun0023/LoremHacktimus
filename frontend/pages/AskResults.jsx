@@ -103,27 +103,40 @@ const AskResults = () => {
     setIsAsking(true);
     const questionText = currentMessage.trim();
     setCurrentMessage('');
-
+  
     try {
-      // Create FormData for the API call
       const formData = new FormData();
       formData.append('question', questionText);
       formData.append('session_id', 'session123');
-      formData.append('language',selectedLanguage);
-
-      const response = await fetch(`${window.location.origin}/api/route-ask`, {
+      formData.append('language', selectedLanguage);
+      
+      // Determine endpoint and add type parameter if needed
+      let endpoint = '/api/route-ask';
+      
+      // Check if this is synced data from initial state
+      const isOrdersData = location.state?.isOrdersData || false;
+      
+      if (isOrdersData) {
+        endpoint = '/api/route-mongo';
+        // Use the same logic as in Home component
+        const dataType = location.state?.dataType === 'orders' ? 'order' : 'product';
+        formData.append('type', dataType);
+      }
+  
+      console.log('Using endpoint:', endpoint, 'with type:', isOrdersData ? (location.state?.dataType === 'orders' ? 'order' : 'product') : 'none');
+  
+      const response = await fetch(`${window.location.origin}${endpoint}`, {
         method: 'POST',
         headers: {
           'x-company-id': company_id,
         },
         body: formData
       });
-
+  
       if (response.ok) {
         const result = await response.json();
-        console.log('Ask API response:', result);
+        console.log(`${endpoint} API response:`, result);
         
-        // Create new conversation entry
         const newConversation = {
           id: Date.now(),
           question: questionText,
@@ -134,18 +147,17 @@ const AskResults = () => {
           timestamp: new Date()
         };
         
-        // Add to conversations
         setConversations(prev => [...prev, newConversation]);
-        
-        // Fetch summary for new question
         fetchSummary(newConversation.id, result, questionText);
         
       } else {
-        throw new Error('Ask request failed');
+        // Log the error response for debugging
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`Ask request failed: ${response.status}`);
       }
     } catch (error) {
       console.error('Ask error:', error);
-      // You could add error handling here, maybe add an error conversation entry
     } finally {
       setIsAsking(false);
     }

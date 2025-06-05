@@ -114,6 +114,50 @@ const orderSchema = new mongoose.Schema({
 
 const Order = mongoose.model('Order', orderSchema);
 
+const productSchema = new mongoose.Schema({
+    company_id: { type: String, required: true },
+    application_id: { type: String },
+    product_uid: { type: Number, required: true },
+    name: { type: String },
+    slug: { type: String },
+    item_code: { type: String },
+    item_type: { type: String },
+    brand: {
+        name: { type: String },
+        uid: { type: Number }
+    },
+    categories: [{
+        uid: { type: Number },
+        name: { type: String }
+    }],
+    price: {
+        marked: {
+            min: { type: Number },
+            max: { type: Number },
+            currency_code: { type: String },
+            currency_symbol: { type: String }
+        },
+        effective: {
+            min: { type: Number },
+            max: { type: Number },
+            currency_code: { type: String },
+            currency_symbol: { type: String }
+        }
+    },
+    discount: { type: String },
+    sizes: [{ type: String }],
+    sellable: { type: Boolean },
+    country_of_origin: { type: String },
+    raw_data: { type: Object }, // Store complete original data
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+});
+
+// Add compound index for efficient queries
+productSchema.index({ company_id: 1, application_id: 1, product_uid: 1 }, { unique: true });
+
+const Product = mongoose.model('Product', productSchema);
+
 const fdkExtension = setupFdk({
     api_key: process.env.EXTENSION_API_KEY,
     api_secret: process.env.EXTENSION_API_SECRET,
@@ -581,10 +625,10 @@ app.post('/api/upload-file', upload.single('file'), async function(req, res) {
 });
 
 // Add this route to your server.js file after the existing /api/upload-file route
-// MongoDB route endpoint with frontend conversion
+// MongoDB route endpoint with frontend conversion - Updated to support both Order and Product
 app.post('/api/route-mongo', upload.none(), async function(req, res) {
     try {
-        const { question, session_id, company_id, application_id } = req.body;
+        const { question, session_id, company_id, application_id, type } = req.body;
 
         if (!question) {
             return res.status(400).json({
@@ -593,60 +637,89 @@ app.post('/api/route-mongo', upload.none(), async function(req, res) {
             });
         }
 
-        console.log('MongoDB route request:', { question, session_id, company_id, application_id });
+        // Validate type parameter
+        const dataType = type || 'order'; // Default to 'order' for backward compatibility
+        if (!['order', 'product'].includes(dataType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Type must be either "order" or "product"'
+            });
+        }
+
+        console.log('MongoDB route request:', { question, session_id, company_id, application_id, type: dataType });
 
         // Build MongoDB query filter
         const mongoQuery = {};
         if (company_id) mongoQuery.company_id = company_id;
         if (application_id) mongoQuery.application_id = application_id;
 
-        // Fetch 3 sample documents as context
-        const sampleOrders = await Order.find(mongoQuery)
-            .limit(3)
-            .sort({ created_at: -1 })
-            .lean();
+        let sampleData = [];
+        let contextText = '';
+        let dbSchema = '';
+        let Model = null;
 
-        // Generate context from sample documents
-        const contextText = sampleOrders.length > 0 
-            ? `Sample Orders Data:\n${JSON.stringify(sampleOrders, null, 2)}`
-            : 'No orders found in database for the specified criteria.';
+        if (dataType === 'order') {
+            // Fetch sample orders
+            Model = Order;
+            sampleData = await Order.find(mongoQuery)
+                .limit(3)
+                .sort({ created_at: -1 })
+                .lean();
 
-        // Generate database schema description
-        const dbSchema = `
+            contextText = sampleData.length > 0 
+                ? `Sample Orders Data:\n${JSON.stringify(sampleData, null, 2)}`
+                : 'No orders found in database for the specified criteria.';
+
+            dbSchema = `
 Orders Collection Schema:
-{
-    company_id: String (required),
-    application_id: String,
-    order_id: String (required, unique),
-    order_created: Date,
-    shipment_status: String,
-    operational_status: String,
-    payment_mode: String,
+    company_id: { type: String, required: true },
+    application_id: { type: String },
+    order_id: { type: String, required: true, unique: true },
+    order_created: { type: Date },
+    shipment_status: { type: String },
+    operational_status: { type: String },
+    payment_mode: { type: String },
     user_info: {
-        name: String,
-        mobile: String,
-        email: String,
-        gender: String
+        name: { type: String },
+        mobile: { type: String },
+        email: { type: String },
+        gender: { type: String }
     },
     prices: {
-        amount_paid: Number,
-        refund_amount: Number,
-        price_marked: Number,
-        discount: Number,
-        delivery_charge: Number,
-        coupon_value: Number,
-        price_effective: Number
+        amount_paid: { type: Number },
+        refund_amount: { type: Number },
+        price_marked: { type: Number },
+        discount: { type: Number },
+        delivery_charge: { type: Number },
+        coupon_value: { type: Number },
+        price_effective: { type: Number }
     },
-    total_order_value: Number,
+    total_order_value: { type: Number },
     currency: {
-        currency_code: String,
-        currency_symbol: String
+        currency_code: { type: String },
+        currency_symbol: { type: String }
     },
-    shipments: Array,
-    raw_data: Object,
-    created_at: Date,
-    updated_at: Date
-}
+    breakup_values: [{ 
+        name: { type: String },
+        display: { type: String },
+        value: { type: String }
+    }],
+    shipments: [{
+        shipment_id: { type: String },
+        shipment_status: { type: String },
+        operational_status: { type: String },
+        total_bags: { type: Number },
+        total_items: { type: Number },
+        prices: {
+            amount_paid: { type: Number },
+            refund_amount: { type: Number },
+            price_marked: { type: Number },
+            discount: { type: Number }
+        }
+    }],
+    raw_data: { type: Object }, // Store complete original data
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
 
 Collection Name: orders
 
@@ -655,7 +728,69 @@ Common Query Examples:
 - Aggregate by payment: db.orders.aggregate([{$group: {_id: "$payment_mode", count: {$sum: 1}}}])
 - Total revenue: db.orders.aggregate([{$group: {_id: null, total: {$sum: "$total_order_value"}}}])
 - Find by customer: db.orders.find({"user_info.mobile": "1234567890"})
-        `.trim();
+            `.trim();
+
+        } else if (dataType === 'product') {
+            // Fetch sample products
+            Model = Product;
+            sampleData = await Product.find(mongoQuery)
+                .limit(3)
+                .sort({ created_at: -1 })
+                .lean();
+
+            contextText = sampleData.length > 0 
+                ? `Sample Products Data:\n${JSON.stringify(sampleData, null, 2)}`
+                : 'No products found in database for the specified criteria.';
+
+            dbSchema = `
+Products Collection Schema:
+    company_id: { type: String, required: true },
+    application_id: { type: String },
+    product_uid: { type: Number, required: true },
+    name: { type: String },
+    slug: { type: String },
+    item_code: { type: String },
+    item_type: { type: String },
+    brand: {
+        name: { type: String },
+        uid: { type: Number }
+    },
+    categories: [{
+        uid: { type: Number },
+        name: { type: String }
+    }],
+    price: {
+        marked: {
+            min: { type: Number },
+            max: { type: Number },
+            currency_code: { type: String },
+            currency_symbol: { type: String }
+        },
+        effective: {
+            min: { type: Number },
+            max: { type: Number },
+            currency_code: { type: String },
+            currency_symbol: { type: String }
+        }
+    },
+    discount: { type: String },
+    sizes: [{ type: String }],
+    sellable: { type: Boolean },
+    country_of_origin: { type: String },
+    raw_data: { type: Object }, // Store complete original data
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+
+Collection Name: products
+
+Common Query Examples:
+- Find by brand: db.products.find({"brand.name": "Nike"})
+- Aggregate by category: db.products.aggregate([{$unwind: "$categories"}, {$group: {_id: "$categories.name", count: {$sum: 1}}}])
+- Price range: db.products.find({"price.effective.min": {$gte: 100, $lte: 500}})
+- Find sellable products: db.products.find({"sellable": true})
+- Find by size: db.products.find({"sizes": "XL"})
+            `.trim();
+        }
 
         // Forward request to /ask-mongo endpoint
         const forwardFormData = new FormDataLib();
@@ -664,6 +799,7 @@ Common Query Examples:
         forwardFormData.append('language', 'en-US');
         forwardFormData.append('context', contextText);
         forwardFormData.append('db_schema', dbSchema);
+        //forwardFormData.append('collection_type', dataType); // Add collection type for AI context
 
         console.log('Forwarding to ask-mongo API...');
         
@@ -687,7 +823,7 @@ Common Query Examples:
 
         try {
             // Parse and execute the MongoDB query
-            queryResults = await executeMongoQuery(generatedQuery, mongoQuery);
+            queryResults = await executeMongoQuery(generatedQuery, mongoQuery, Model);
             console.log('Query execution results:', JSON.stringify(queryResults, null, 2));
 
             // Determine result type based on query results
@@ -720,6 +856,7 @@ Common Query Examples:
                 conversionFormData.append('query_result', JSON.stringify(queryResults));
                 conversionFormData.append('question', question.trim());
                 conversionFormData.append('session_id', session_id || 'session123');
+                conversionFormData.append('data_type', dataType); // Add data type for better conversion
 
                 const conversionResponse = await axios.post('http://127.0.0.1:8000/convert-to-frontend', conversionFormData, {
                     headers: {
@@ -744,16 +881,18 @@ Common Query Examples:
             result: frontendData || queryResults, // Use frontend data if available, otherwise raw results
             result_type: result_type,
             file_info: {
-                original_filename: "mongodb_query_result",
-                converted_from_excel: false
+                original_filename: `mongodb_${dataType}_query_result`,
+                converted_from_excel: false,
+                data_type: dataType
             },
             error_fixed: queryError === null,
             original_error: queryError,
             context_info: {
-                orders_count: sampleOrders.length,
-                has_context: sampleOrders.length > 0,
+                [`${dataType}s_count`]: sampleData.length,
+                has_context: sampleData.length > 0,
                 company_id,
-                application_id
+                application_id,
+                data_type: dataType
             },
             execution_results: {
                 success: queryResults !== null,
@@ -798,8 +937,8 @@ Common Query Examples:
     }
 });
 
-// Helper function to execute MongoDB queries (unchanged)
-async function executeMongoQuery(queryString, baseFilter = {}) {
+// Updated helper function to execute MongoDB queries with dynamic model support
+async function executeMongoQuery(queryString, baseFilter = {}, Model = Order) {
     try {
         // Clean the query string and handle multi-line
         let cleanQuery = queryString.trim();
@@ -827,17 +966,24 @@ async function executeMongoQuery(queryString, baseFilter = {}) {
         
         console.log('Executing query:', actualQuery);
         
-        // Execute the query directly by replacing db.orders with Order
-        let executableQuery = actualQuery.replace(/db\.orders\./g, 'Order.');
+        // Execute the query directly by replacing collection references with the Model
+        let executableQuery = actualQuery;
+        
+        // Handle both orders and products collections
+        if (Model.collection.collectionName === 'orders') {
+            executableQuery = executableQuery.replace(/db\.orders\./g, 'Model.');
+        } else if (Model.collection.collectionName === 'products') {
+            executableQuery = executableQuery.replace(/db\.products\./g, 'Model.');
+        }
         
         // Use Function constructor instead of eval for better multi-line support
-        const asyncFunction = new Function('Order', `
+        const asyncFunction = new Function('Model', `
             return (async () => {
                 return await ${executableQuery};
             })();
         `);
         
-        const result = await asyncFunction(Order);
+        const result = await asyncFunction(Model);
         return result;
         
     } catch (error) {
@@ -845,6 +991,178 @@ async function executeMongoQuery(queryString, baseFilter = {}) {
         throw error;
     }
 }
+
+// Add this route to your product router
+productRouter.get('/sync/:application_id', async function(req, res, next) {
+    try {
+        const { platformClient } = req;
+        const { application_id } = req.params;
+        const { company_id } = req.query;
+
+        console.log('Fetching products for application:', application_id);
+
+        // Fetch products from platform
+        const data = await platformClient.application(application_id).catalog.getAppProducts();
+        
+        if (data && data.items && data.items.length > 0) {
+            console.log(`Processing ${data.items.length} products for MongoDB insertion`);
+            
+            // Process and insert products into MongoDB
+            const productsToInsert = [];
+            const processedProducts = [];
+            
+            for (const productData of data.items) {
+                try {
+                    // Create structured product object
+                    const productDoc = {
+                        company_id: company_id,
+                        application_id: application_id,
+                        product_uid: productData.uid,
+                        name: productData.name,
+                        slug: productData.slug,
+                        item_code: productData.item_code,
+                        item_type: productData.item_type,
+                        brand: {
+                            name: productData.brand?.name,
+                            uid: productData.brand?.uid
+                        },
+                        categories: productData.categories?.map(cat => ({
+                            uid: cat.uid,
+                            name: cat.name
+                        })) || [],
+                        price: {
+                            marked: {
+                                min: productData.price?.marked?.min || 0,
+                                max: productData.price?.marked?.max || 0,
+                                currency_code: productData.price?.marked?.currency_code || 'INR',
+                                currency_symbol: productData.price?.marked?.currency_symbol || '₹'
+                            },
+                            effective: {
+                                min: productData.price?.effective?.min || 0,
+                                max: productData.price?.effective?.max || 0,
+                                currency_code: productData.price?.effective?.currency_code || 'INR',
+                                currency_symbol: productData.price?.effective?.currency_symbol || '₹'
+                            }
+                        },
+                        discount: productData.discount,
+                        sizes: productData.sizes || [],
+                        sellable: productData.sellable,
+                        country_of_origin: productData.country_of_origin,
+                        raw_data: productData, // Store complete original data
+                        updated_at: new Date()
+                    };
+
+                    productsToInsert.push(productDoc);
+                    
+                    // Create flattened row for preview (similar to CSV structure)
+                    const flattenedProduct = {
+                        product_uid: productData.uid,
+                        name: productData.name || 'N/A',
+                        brand_name: productData.brand?.name || 'N/A',
+                        item_code: productData.item_code || 'N/A',
+                        item_type: productData.item_type || 'N/A',
+                        price_min: productData.price?.effective?.min || 0,
+                        price_max: productData.price?.effective?.max || 0,
+                        marked_price_min: productData.price?.marked?.min || 0,
+                        marked_price_max: productData.price?.marked?.max || 0,
+                        discount: productData.discount || 'N/A',
+                        currency: productData.price?.effective?.currency_code || 'INR',
+                        sellable: productData.sellable ? 'Yes' : 'No',
+                        country_of_origin: productData.country_of_origin || 'N/A',
+                        categories_count: productData.categories?.length || 0,
+                        sizes_count: productData.sizes?.length || 0
+                    };
+                    
+                    processedProducts.push(flattenedProduct);
+                    
+                } catch (processError) {
+                    console.error('Error processing product:', productData.uid, processError);
+                }
+            }
+            
+            // Bulk insert/update products in MongoDB FIRST
+            let mongoResult = null;
+            if (productsToInsert.length > 0) {
+                try {
+                    const bulkOps = productsToInsert.map(product => ({
+                        updateOne: {
+                            filter: { 
+                                product_uid: product.product_uid, 
+                                company_id: product.company_id,
+                                application_id: product.application_id
+                            },
+                            update: { $set: product },
+                            upsert: true
+                        }
+                    }));
+                    
+                    mongoResult = await Product.bulkWrite(bulkOps);
+                    console.log(`MongoDB operation result: ${mongoResult.upsertedCount} inserted, ${mongoResult.modifiedCount} updated`);
+                } catch (mongoError) {
+                    console.error('MongoDB insertion error:', mongoError);
+                    // Return error if MongoDB insertion fails
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to save products to database',
+                        message: mongoError.message
+                    });
+                }
+            }
+            
+            // Generate FilePreview compatible response AFTER successful MongoDB insertion
+            const columns = [
+                'product_uid', 'name', 'brand_name', 'item_code', 
+                'item_type', 'price_min', 'price_max', 'marked_price_min', 
+                'marked_price_max', 'discount', 'currency', 'sellable', 
+                'country_of_origin', 'categories_count', 'sizes_count'
+            ];
+            
+            const previewResponse = {
+                success: true,
+                original_data: data, // Include original API response
+                file_preview: {
+                    filename: `Products_${application_id}_${new Date().toISOString().split('T')[0]}.json`,
+                    num_rows_total: processedProducts.length,
+                    columns: columns,
+                    first_10_rows: processedProducts.slice(0, 10),
+                    insights: {
+                        question: [
+                            "What is the total number of products available?",
+                            "Which brand has the most products?",
+                            "What is the average price range of products?",
+                            "How many products are currently sellable?",
+                            "Which category has the most products?",
+                            "What is the total discount value across all products?",
+                            "How many products have multiple sizes available?",
+                            "What is the distribution of products by country of origin?"
+                        ]
+                    }
+                },
+                mongodb_stats: {
+                    total_processed: productsToInsert.length,
+                    collection_name: 'products',
+                    upserted_count: mongoResult?.upsertedCount || 0,
+                    modified_count: mongoResult?.modifiedCount || 0
+                }
+            };
+            
+            return res.json(previewResponse);
+            
+        } else {
+            // No products found
+            return res.json({
+                success: true,
+                original_data: data,
+                file_preview: null,
+                message: 'No products found'
+            });
+        }
+        
+    } catch (err) {
+        console.error('Products sync error:', err);
+        next(err);
+    }
+});
 
 app.post('/api/route-ask', upload.none(), async function(req, res) {
     try {

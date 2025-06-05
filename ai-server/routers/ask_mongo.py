@@ -16,7 +16,7 @@ async def ask_mongo_question(
     model = Depends(get_genai_client)
 ):
     """Generate MongoDB query based on user question and database schema"""
-    
+    print(f"Received question: {question}")
     original_question = question
     
     # Check if translation is needed

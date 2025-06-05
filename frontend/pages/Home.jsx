@@ -22,6 +22,8 @@ export const Home = () => {
     }
   ]);
   const [orderPreview, setOrderPreview] = useState(null);
+  const [showSyncDropdown, setShowSyncDropdown] = useState(false);
+const [syncType, setSyncType] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [isOrdersData, setIsOrdersData] = useState(false); // Track if current data is from orders
   const { company_id } = useParams();
@@ -104,18 +106,18 @@ export const Home = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-
+  
     const userMessage = {
       type: 'user',
       content: message,
       timestamp: new Date()
     };
-
+  
     setChatHistory(prev => [...prev, userMessage]);
     const currentMessage = message;
     setMessage("");
     setIsAsking(true);
-
+  
     if (!uploadedFile) {
       setTimeout(() => {
         const aiResponse = {
@@ -128,16 +130,23 @@ export const Home = () => {
       }, 1000);
       return;
     }
-
+  
     try {
       // Create FormData instead of JSON
       const formData = new FormData();
       formData.append('question', currentMessage.trim());
       formData.append('session_id', 'session123');
       formData.append('language', selectedLanguage);
-
+      
+      // Add type parameter when using MongoDB route
+      if (isOrdersData) {
+        // Determine the type based on the uploaded file or sync type
+        const dataType = uploadedFile.isOrdersData ? 'order' : 'product';
+        formData.append('type', dataType);
+      }
+  
       setPageLoading(true); // <-- Show spinner
-
+  
       // Choose endpoint based on whether we have orders data or uploaded file data
       const endpoint = isOrdersData ? '/api/route-mongo' : '/api/route-ask';
       
@@ -149,21 +158,23 @@ export const Home = () => {
         },
         body: formData // Send FormData instead of JSON
       });
-
+  
       if (response.ok) {
         const result = await response.json();
         console.log(`${endpoint} API response:`, result);
-
+  
         const askPath = application_id 
           ? `/company/${company_id}/application/${application_id}/ask`
           : `/company/${company_id}/ask`;
           
-        navigate(askPath, {
-          state: {
-            data: result,
-            question: currentMessage
-          }
-        });
+          navigate(askPath, {
+            state: {
+              data: result,
+              question: currentMessage,
+              isOrdersData: isOrdersData,
+              dataType: uploadedFile?.dataType || (uploadedFile?.isOrdersData ? 'orders' : 'products') // Pass the original sync type
+            }
+          });
         // No need to setPageLoading(false) because component will unmount
       } else {
         throw new Error('Ask request failed');
@@ -180,6 +191,7 @@ export const Home = () => {
       setIsAsking(false);
     }
   };
+  
   console.log(selectedLanguage);
 
   const removeFile = () => {
@@ -209,61 +221,65 @@ export const Home = () => {
     }
   };
 
-  const handleGetOrders = async () => {
-    if (!application_id) {
+// Updated handleSync function to track data type
+const handleSync = async (type) => {
+  if (!application_id) {
       console.log('No application_id available');
       return;
-    }
-  
-    setIsLoadingOrders(true);
-    console.log('Fetching orders for application_id:', application_id);
-    try {
-      const response = await fetch(`${EXAMPLE_MAIN_URL}/api/products/orders/${application_id}?pageNo=1&pageSize=10`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-company-id': company_id,
-        }
+  }
+
+  setIsLoadingOrders(true);
+  setSyncType(type);
+  setShowSyncDropdown(false);
+
+  try {
+      const endpoint = type === 'orders' 
+          ? `/api/products/orders/${application_id}?pageNo=1&pageSize=10`
+          : `/api/products/sync/${application_id}`;
+
+      const response = await fetch(`${EXAMPLE_MAIN_URL}${endpoint}`, {
+          method: 'GET',
+          headers: {
+              'Content-Type': 'application/json',
+              'x-company-id': company_id,
+          }
       });
-  
+
       if (response.ok) {
-        const ordersData = await response.json();
-        console.log('Orders API Response:', ordersData);
-        
-        // Set both order preview and file preview
-        setOrderPreview(ordersData);
-        setFilePreview(ordersData.file_preview);
-        setIsOrdersData(true); // Set flag to indicate this is orders data
-        
-        // Set uploaded file info to indicate orders are loaded
-        setUploadedFile({
-          name: ordersData.file_preview.filename,
-          size: 0, // Orders don't have file size
-          type: 'application/json',
-          isOrdersData: true // Flag to identify this is orders data
-        });
-        
-        // Add success message to chat
-        setChatHistory(prev => [...prev, {
-          type: 'system',
-          content: `✅ Fetched ${ordersData?.file_preview?.num_rows_total || 0} orders successfully! You can now ask questions about your order data.`,
-          timestamp: new Date()
-        }]);
+          const syncData = await response.json();
+          console.log(`${type} sync response:`, syncData);
+          
+          setFilePreview(syncData.file_preview);
+          setIsOrdersData(type === 'orders' || type === 'products');
+          
+          setUploadedFile({
+              name: syncData.file_preview.filename,
+              size: 0,
+              type: 'application/json',
+              isOrdersData: type === 'orders', // Track if it's specifically orders data
+              dataType: type // Add explicit data type tracking
+          });
+          
+          setChatHistory(prev => [...prev, {
+              type: 'system',
+              content: `✅ ${syncData.message || `Synced ${syncData.synced_count} ${type}`}`,
+              timestamp: new Date()
+          }]);
       } else {
-        throw new Error(`API call failed with status: ${response.status}`);
+          throw new Error(`API call failed with status: ${response.status}`);
       }
-    } catch (error) {
-      console.error('Orders API Error:', error);
+  } catch (error) {
+      console.error(`${type} sync error:`, error);
       setChatHistory(prev => [...prev, {
-        type: 'system',
-        content: `❌ Failed to fetch orders: ${error.message}`,
-        timestamp: new Date()
+          type: 'system',
+          content: `❌ Failed to sync ${type}: ${error.message}`,
+          timestamp: new Date()
       }]);
-    } finally {
+  } finally {
       setIsLoadingOrders(false);
-    }
-  };
-  
+      setSyncType(null);
+  }
+};
   
 
   return (
@@ -296,16 +312,29 @@ export const Home = () => {
   </button>
   
 </div>
-<div className="my-dashboards-section">
-          <button 
-  onClick={handleGetOrders}
-  disabled={isLoadingOrders || !application_id}
-  className="my-dashboards-btn"
-  style={{ marginLeft: '10px' }}
->
-  <FileText className="btn-icon" />
-  {isLoadingOrders ? 'Loading...' : 'Sync Data'}
-</button>
+<div className="my-dashboards-section" style={{ position: 'relative' }}>
+    <button 
+        onClick={() => setShowSyncDropdown(!showSyncDropdown)}
+        disabled={isLoadingOrders || !application_id}
+        className="my-dashboards-btn"
+        style={{ marginLeft: '10px' }}
+    >
+        <FileText className="btn-icon" />
+        {isLoadingOrders ? `Syncing ${syncType}...` : 'Sync Data'}
+    </button>
+    
+    {showSyncDropdown && (
+        <div className="sync-dropdown">
+            <div className="sync-option" onClick={() => handleSync('orders')}>
+                <div className="sync-option-title">Sync Orders</div>
+                <div className="sync-option-desc">Get insights on your orders</div>
+            </div>
+            <div className="sync-option" onClick={() => handleSync('products')}>
+                <div className="sync-option-title">Sync Products</div>
+                <div className="sync-option-desc">Analyze your product catalog</div>
+            </div>
+        </div>
+    )}
 </div>
         </div>
       </div>

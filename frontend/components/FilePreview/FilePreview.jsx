@@ -6,7 +6,7 @@ const FilePreview = ({ filePreview, orderPreview, setMessage }) => {
   // Use orderPreview if available, otherwise fall back to filePreview
   const previewData = orderPreview?.file_preview || filePreview;
   const isOrderData = !!orderPreview;
-
+  console.log('FilePreview component rendered with data:', previewData);
   return (
     <div className="file-preview-container">
       {previewData ? (
