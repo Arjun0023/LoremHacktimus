@@ -238,7 +238,48 @@ const closeSaveModal = () => {
           </div>
         ))}
       </div>
-
+     {/* Save Dashboard Modal */}
+     {showSaveModal && (
+    <div className="summary-modal-overlay" onClick={closeSaveModal}>
+        <div className="summary-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="summary-modal-header">
+                <h3>Save Dashboard</h3>
+                <button className="close-btn" onClick={closeSaveModal}>
+                    <X size={20} />
+                </button>
+            </div>
+            <div className="summary-modal-content">
+                <div className="save-dashboard-form">
+                    <label htmlFor="dashboard-name">Dashboard Name:</label>
+                    <input
+                        id="dashboard-name"
+                        type="text"
+                        value={dashboardName}
+                        onChange={(e) => setDashboardName(e.target.value)}
+                        placeholder="Enter dashboard name..."
+                        disabled={isSaving}
+                    />
+                    <div className="save-dashboard-actions">
+                        <button 
+                            onClick={closeSaveModal} 
+                            className="cancel-btn"
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={saveDashboardToMongoDB} 
+                            className="save-btn"
+                            disabled={isSaving || !dashboardName.trim()}
+                        >
+                            {isSaving ? 'Saving...' : 'Save Dashboard'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
       {/* Summary Modal */}
       {selectedSummary && (
         <div className="summary-modal-overlay" onClick={closeSummary}>

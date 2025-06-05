@@ -23,6 +23,7 @@ export const Home = () => {
   ]);
   const [orderPreview, setOrderPreview] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [isOrdersData, setIsOrdersData] = useState(false); // Track if current data is from orders
   const { company_id } = useParams();
   const application_id = '682b353767354dde698f64a9'; // Get application_id from URL params
   console.log('Company ID:', company_id, 'Application ID:', application_id);
@@ -75,6 +76,7 @@ export const Home = () => {
           size: file.size,
           type: file.type
         });
+        setIsOrdersData(false); // This is uploaded file data, not orders
         
         // Add success message to chat
         setChatHistory(prev => [...prev, {
@@ -132,11 +134,14 @@ export const Home = () => {
       const formData = new FormData();
       formData.append('question', currentMessage.trim());
       formData.append('session_id', 'session123');
-      formData.append('language',  selectedLanguage);
+      formData.append('language', selectedLanguage);
 
       setPageLoading(true); // <-- Show spinner
 
-      const response = await fetch(`${EXAMPLE_MAIN_URL}/api/route-ask`, {
+      // Choose endpoint based on whether we have orders data or uploaded file data
+      const endpoint = isOrdersData ? '/api/route-mongo' : '/api/route-ask';
+      
+      const response = await fetch(`${EXAMPLE_MAIN_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'x-company-id': company_id,
@@ -147,7 +152,7 @@ export const Home = () => {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Ask API response:', result);
+        console.log(`${endpoint} API response:`, result);
 
         const askPath = application_id 
           ? `/company/${company_id}/application/${application_id}/ask`
@@ -180,7 +185,8 @@ export const Home = () => {
   const removeFile = () => {
     setUploadedFile(null);
     setFilePreview(null); // Also clear file preview
-    setOrderPreview(null)
+    setOrderPreview(null);
+    setIsOrdersData(false); // Reset orders data flag
     setChatHistory(prev => [...prev, {
       type: 'system',
       content: 'File removed. Upload a new file to continue analysis.',
@@ -227,6 +233,7 @@ export const Home = () => {
         // Set both order preview and file preview
         setOrderPreview(ordersData);
         setFilePreview(ordersData.file_preview);
+        setIsOrdersData(true); // Set flag to indicate this is orders data
         
         // Set uploaded file info to indicate orders are loaded
         setUploadedFile({
@@ -297,7 +304,7 @@ export const Home = () => {
   style={{ marginLeft: '10px' }}
 >
   <FileText className="btn-icon" />
-  {isLoadingOrders ? 'Loading...' : 'Get Orders'}
+  {isLoadingOrders ? 'Loading...' : 'Sync Data'}
 </button>
 </div>
         </div>

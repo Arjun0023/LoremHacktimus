@@ -581,8 +581,271 @@ app.post('/api/upload-file', upload.single('file'), async function(req, res) {
 });
 
 // Add this route to your server.js file after the existing /api/upload-file route
+// MongoDB route endpoint with frontend conversion
+app.post('/api/route-mongo', upload.none(), async function(req, res) {
+    try {
+        const { question, session_id, company_id, application_id } = req.body;
 
-// New ask endpoint
+        if (!question) {
+            return res.status(400).json({
+                success: false,
+                message: 'Question is required'
+            });
+        }
+
+        console.log('MongoDB route request:', { question, session_id, company_id, application_id });
+
+        // Build MongoDB query filter
+        const mongoQuery = {};
+        if (company_id) mongoQuery.company_id = company_id;
+        if (application_id) mongoQuery.application_id = application_id;
+
+        // Fetch 3 sample documents as context
+        const sampleOrders = await Order.find(mongoQuery)
+            .limit(3)
+            .sort({ created_at: -1 })
+            .lean();
+
+        // Generate context from sample documents
+        const contextText = sampleOrders.length > 0 
+            ? `Sample Orders Data:\n${JSON.stringify(sampleOrders, null, 2)}`
+            : 'No orders found in database for the specified criteria.';
+
+        // Generate database schema description
+        const dbSchema = `
+Orders Collection Schema:
+{
+    company_id: String (required),
+    application_id: String,
+    order_id: String (required, unique),
+    order_created: Date,
+    shipment_status: String,
+    operational_status: String,
+    payment_mode: String,
+    user_info: {
+        name: String,
+        mobile: String,
+        email: String,
+        gender: String
+    },
+    prices: {
+        amount_paid: Number,
+        refund_amount: Number,
+        price_marked: Number,
+        discount: Number,
+        delivery_charge: Number,
+        coupon_value: Number,
+        price_effective: Number
+    },
+    total_order_value: Number,
+    currency: {
+        currency_code: String,
+        currency_symbol: String
+    },
+    shipments: Array,
+    raw_data: Object,
+    created_at: Date,
+    updated_at: Date
+}
+
+Collection Name: orders
+
+Common Query Examples:
+- Find by status: db.orders.find({"shipment_status": "delivered"})
+- Aggregate by payment: db.orders.aggregate([{$group: {_id: "$payment_mode", count: {$sum: 1}}}])
+- Total revenue: db.orders.aggregate([{$group: {_id: null, total: {$sum: "$total_order_value"}}}])
+- Find by customer: db.orders.find({"user_info.mobile": "1234567890"})
+        `.trim();
+
+        // Forward request to /ask-mongo endpoint
+        const forwardFormData = new FormDataLib();
+        forwardFormData.append('question', question.trim());
+        forwardFormData.append('session_id', session_id || 'session123');
+        forwardFormData.append('language', 'en-US');
+        forwardFormData.append('context', contextText);
+        forwardFormData.append('db_schema', dbSchema);
+
+        console.log('Forwarding to ask-mongo API...');
+        
+        const forwardResponse = await axios.post('http://127.0.0.1:8000/ask-mongo', forwardFormData, {
+            headers: {
+                ...forwardFormData.getHeaders()
+            },
+            timeout: 30000,
+        });
+
+        console.log('Received response from ask-mongo API:', forwardResponse.status, forwardResponse.data);
+
+        // Extract the MongoDB query from the response
+        const generatedQuery = forwardResponse.data.query;
+        console.log('Generated MongoDB Query:', generatedQuery);
+
+        // Execute the generated MongoDB query
+        let queryResults = null;
+        let queryError = null;
+        let result_type = 'unknown';
+
+        try {
+            // Parse and execute the MongoDB query
+            queryResults = await executeMongoQuery(generatedQuery, mongoQuery);
+            console.log('Query execution results:', JSON.stringify(queryResults, null, 2));
+
+            // Determine result type based on query results
+            if (Array.isArray(queryResults)) {
+                if (queryResults.length > 0 && queryResults[0]._id !== undefined) {
+                    result_type = 'aggregation';
+                } else {
+                    result_type = 'documents';
+                }
+            } else if (typeof queryResults === 'number') {
+                result_type = 'count';
+            } else {
+                result_type = 'other';
+            }
+        } catch (execError) {
+            console.error('Error executing MongoDB query:', execError);
+            queryError = execError.message;
+            result_type = 'error';
+        }
+
+        // Convert query results to frontend format if successful
+        let frontendData = null;
+        let conversionError = null;
+
+        if (queryResults !== null && queryError === null) {
+            try {
+                console.log('Converting results to frontend format...');
+                
+                const conversionFormData = new FormDataLib();
+                conversionFormData.append('query_result', JSON.stringify(queryResults));
+                conversionFormData.append('question', question.trim());
+                conversionFormData.append('session_id', session_id || 'session123');
+
+                const conversionResponse = await axios.post('http://127.0.0.1:8000/convert-to-frontend', conversionFormData, {
+                    headers: {
+                        ...conversionFormData.getHeaders()
+                    },
+                    timeout: 30000,
+                });
+
+                console.log('Conversion response:', conversionResponse.data);
+                frontendData = conversionResponse.data.frontend_data;
+                
+            } catch (convError) {
+                console.error('Error converting to frontend format:', convError);
+                conversionError = convError.message;
+                // Don't fail the entire request if conversion fails
+            }
+        }
+
+        // Prepare the final response in the required format
+        const responseData = {
+            code: generatedQuery,
+            result: frontendData || queryResults, // Use frontend data if available, otherwise raw results
+            result_type: result_type,
+            file_info: {
+                original_filename: "mongodb_query_result",
+                converted_from_excel: false
+            },
+            error_fixed: queryError === null,
+            original_error: queryError,
+            context_info: {
+                orders_count: sampleOrders.length,
+                has_context: sampleOrders.length > 0,
+                company_id,
+                application_id
+            },
+            execution_results: {
+                success: queryResults !== null,
+                data: queryResults,
+                error: queryError,
+                executed_query: generatedQuery
+            },
+            frontend_conversion: {
+                success: frontendData !== null,
+                error: conversionError,
+                converted_data: frontendData
+            }
+        };
+
+        return res.status(200).json(responseData);
+
+    } catch (error) {
+        console.error('MongoDB route error:', error);
+        
+        // Prepare error response in the required format
+        const errorResponse = {
+            code: null,
+            result: null,
+            result_type: 'error',
+            file_info: {
+                original_filename: "mongodb_query_result",
+                converted_from_excel: false
+            },
+            error_fixed: false,
+            original_error: error.message || 'Unknown error'
+        };
+        
+        if (error.response) {
+            return res.status(error.response.status).json(errorResponse);
+        } else if (error.request) {
+            errorResponse.original_error = 'Target service unavailable';
+            return res.status(503).json(errorResponse);
+        } else {
+            errorResponse.original_error = 'Internal server error during MongoDB query request';
+            return res.status(500).json(errorResponse);
+        }
+    }
+});
+
+// Helper function to execute MongoDB queries (unchanged)
+async function executeMongoQuery(queryString, baseFilter = {}) {
+    try {
+        // Clean the query string and handle multi-line
+        let cleanQuery = queryString.trim();
+        
+        // Handle multi-line responses and extract the actual query
+        const lines = cleanQuery.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        // Find the line that starts the MongoDB operation
+        let startIndex = -1;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes('find(') || lines[i].includes('aggregate(') || 
+                lines[i].includes('countDocuments(') || lines[i].includes('distinct(')) {
+                startIndex = i;
+                break;
+            }
+        }
+        
+        let actualQuery = '';
+        if (startIndex !== -1) {
+            // Join all lines from the start of the operation
+            actualQuery = lines.slice(startIndex).join('\n');
+        } else {
+            actualQuery = cleanQuery;
+        }
+        
+        console.log('Executing query:', actualQuery);
+        
+        // Execute the query directly by replacing db.orders with Order
+        let executableQuery = actualQuery.replace(/db\.orders\./g, 'Order.');
+        
+        // Use Function constructor instead of eval for better multi-line support
+        const asyncFunction = new Function('Order', `
+            return (async () => {
+                return await ${executableQuery};
+            })();
+        `);
+        
+        const result = await asyncFunction(Order);
+        return result;
+        
+    } catch (error) {
+        console.error('Error in executeMongoQuery:', error);
+        throw error;
+    }
+}
+
 app.post('/api/route-ask', upload.none(), async function(req, res) {
     try {
         const { question, session_id, language } = req.body;
