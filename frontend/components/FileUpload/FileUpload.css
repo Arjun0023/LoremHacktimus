@@ -84,12 +84,16 @@
     align-items: center;
     justify-content: space-between;
     margin: 20px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
   
-  .file-info {
+  .file-details {
+    min-width: 0;
+    max-width: 220px; /* Adjust as needed for your layout */
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
   }
   
   .file-icon-container {
@@ -113,6 +117,11 @@
     color: #1f2937;
     margin: 0 0 4px 0;
     font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px; /* Adjust as needed */
+    display: block;
   }
   
   .file-size {

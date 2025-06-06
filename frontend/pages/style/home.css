@@ -916,38 +916,22 @@
 
 .sync-dropdown {
   position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  z-index: 1000;
-  min-width: 200px;
-  margin-top: 4px;
+  top: 110%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(99,102,241,0.10);
+  padding: 16px 18px 12px 18px;
+  z-index: 100;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeInDropdown 0.2s;
 }
 
-.sync-option {
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.sync-option:last-child {
-  border-bottom: none;
-}
-
-.sync-option:hover {
-  background-color: #f8f9fa;
-}
-
-.sync-option-title {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 2px;
-}
-
-.sync-option-desc {
-  font-size: 12px;
-  color: #666;
+@keyframes fadeInDropdown {
+  from { opacity: 0; transform: translateY(-10px);}
+  to { opacity: 1; transform: translateY(0);}
 }
