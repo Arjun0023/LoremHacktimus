@@ -48,7 +48,7 @@ const FileUpload = ({
               )}
             </div>
             <div className="file-details">
-              <p className="file-name">{uploadedFile.name}</p>
+              <p className="file-name" title={uploadedFile.name}>{uploadedFile.name}</p>
               <p className="file-size">{formatFileSize(uploadedFile.size)}</p>
             </div>
           </div>
