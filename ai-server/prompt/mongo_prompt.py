@@ -68,4 +68,6 @@ MONGO_PROMPT = '''You are an expert MongoDB query generator. Convert natural lan
 
 ## VERY IMPORTANT: Do not return any other text, explanations, or markdown formatting.
 
+#VERY IMPORTANT: Do not include "\n" or any other formatting characters in the response.
+
 Generate the MongoDB query now:'''

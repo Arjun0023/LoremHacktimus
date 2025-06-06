@@ -297,6 +297,7 @@ const handleSync = async (type) => {
             </div>
           </div>
           {/* My Dashboards Button */}
+          <div className="header-buttons">
 <div className="my-dashboards-section">
   <button 
     onClick={() => {
@@ -335,6 +336,7 @@ const handleSync = async (type) => {
             </div>
         </div>
     )}
+</div>
 </div>
         </div>
       </div>

@@ -440,7 +440,18 @@
   color: #374151;
   font-weight: 600;
 }
+.export-png-btn {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
 
+.export-png-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+  border-color: #dee2e6;
+}
 /* Loading States */
 .ask-loading {
   display: flex;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, PieChart, Table as TableIcon, Trash2, FileText, X } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { ArrowLeft, BarChart3, PieChart, Table as TableIcon, Trash2, FileText, X, Camera } from 'lucide-react';
 import TableComponent from '../components/Table/TableComponent';
 import BarChartComponent from '../components/BarChart/BarChartComponent';
 import PieChartComponent from '../components/PieChart/PieChartComponent';
@@ -99,7 +100,31 @@ const saveDashboardToMongoDB = async () => {
         setIsSaving(false);
     }
 };
+const captureScreenshot = async () => {
+  try {
+    const dashboardElement = document.querySelector('.dashboard-grid');
+    if (!dashboardElement) {
+      alert('Dashboard not found');
+      return;
+    }
 
+    const canvas = await html2canvas(dashboardElement, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true
+    });
+
+    // Create download link
+    const link = document.createElement('a');
+    link.download = `dashboard-${new Date().toISOString().split('T')[0]}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (error) {
+    console.error('Screenshot error:', error);
+    alert('Failed to capture screenshot');
+  }
+};
 const closeSaveModal = () => {
     setShowSaveModal(false);
     setDashboardName('');
@@ -154,14 +179,18 @@ const closeSaveModal = () => {
           <span className="dashboard-count">{dashboardItems.length} items</span>
         </div>
         <div className="header-actions">
-    <button onClick={handleSaveDashboard} className="save-dashboard-btn">
-        <FileText size={16} />
-        Save Dashboard
-    </button>
-    <button onClick={clearAllItems} className="clear-all-btn">
-        <Trash2 size={16} />
-        Clear All
-    </button>
+  <button onClick={captureScreenshot} className="screenshot-btn">
+    <Camera size={16} />
+    Screenshot
+  </button>
+  <button onClick={handleSaveDashboard} className="save-dashboard-btn">
+    <FileText size={16} />
+    Save Dashboard
+  </button>
+  <button onClick={clearAllItems} className="clear-all-btn">
+    <Trash2 size={16} />
+    Clear All
+  </button>
 </div>
       </div>
 

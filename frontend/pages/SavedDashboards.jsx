@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, PieChart, Table as TableIcon, Trash2, FileText, X, Calendar, ChevronRight, Sparkles } from 'lucide-react';
 import TableComponent from '../components/Table/TableComponent';
+import html2canvas from 'html2canvas';
+import { ArrowLeft, BarChart3, PieChart, Table as TableIcon, Trash2, FileText, X, Calendar, ChevronRight, Sparkles, Camera } from 'lucide-react';
 import BarChartComponent from '../components/BarChart/BarChartComponent';
 import PieChartComponent from '../components/PieChart/PieChartComponent';
 import './style/SavedDashboards.css';
@@ -97,6 +98,37 @@ console.log(selectedDashboard, dashboards)
     } catch (error) {
       console.error('Delete dashboard error:', error);
       alert('Error deleting dashboard');
+    }
+  };
+
+  const captureScreenshot = async () => {
+    if (!selectedDashboard) {
+      alert('Please select a dashboard first');
+      return;
+    }
+  
+    try {
+      const dashboardElement = document.querySelector('.dashboard-grid');
+      if (!dashboardElement) {
+        alert('Dashboard not found');
+        return;
+      }
+  
+      const canvas = await html2canvas(dashboardElement, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      });
+  
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `${selectedDashboard.dashboard_name}-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Screenshot error:', error);
+      alert('Failed to capture screenshot');
     }
   };
 
@@ -247,12 +279,20 @@ console.log(selectedDashboard, dashboards)
             </div>
           ) : (
             <div className="dashboard-viewer">
-              <div className="dashboard-viewer-header">
-                <h2>{selectedDashboard.dashboard_name}</h2>
-                <span className="dashboard-items-count">
-                  {selectedDashboard.dashboard_items?.length || 0} items
-                </span>
-              </div>
+            <div className="dashboard-viewer-header">
+  <div className="header-left">
+    <h2>{selectedDashboard.dashboard_name}</h2>
+    <span className="dashboard-items-count">
+      {selectedDashboard.dashboard_items?.length || 0} items
+    </span>
+  </div>
+  <div className="header-actions">
+    <button onClick={captureScreenshot} className="screenshot-btn">
+      <Camera size={16} />
+      Screenshot
+    </button>
+  </div>
+</div>
 
               <div className="dashboard-grid">
                 {selectedDashboard.dashboard_items?.map((item) => (

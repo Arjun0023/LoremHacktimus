@@ -20,9 +20,19 @@
 
 .header-content {
   padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Add this new container for the buttons */
+.header-buttons {
   display: flex;
   align-items: center;
   gap: 12px;

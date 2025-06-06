@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Table as TableIcon, BarChart3, PieChart, FileText, Eye, ToggleLeft, File, Plus, Check } from 'lucide-react';
+import { ArrowLeft, Download, Table as TableIcon, BarChart3, PieChart, FileText, Eye, ToggleLeft, File, Plus, Check, Camera } from 'lucide-react';  
 import BottomChatInput from '../components/input/InputComponent';
 import TableComponent from '../components/Table/TableComponent';
 import BarChartComponent from '../components/BarChart/BarChartComponent';
@@ -233,6 +233,40 @@ const AskResults = () => {
     }
   };
 
+  const exportChartAsPNG = async (conversation, index) => {
+    try {
+      // Find the chart container element
+      const chartElement = document.querySelector(`.conversation-item:nth-child(${index + 1}) .chart-content`);
+      
+      if (!chartElement) {
+        showToastNotification('Chart not found for export');
+        return;
+      }
+  
+      // Use html2canvas to capture the chart
+      const html2canvas = (await import('html2canvas')).default;
+      
+      const canvas = await html2canvas(chartElement, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        logging: false,
+        useCORS: true
+      });
+  
+      // Convert to PNG and download
+      const link = document.createElement('a');
+      link.download = `chart-${conversation.question.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      showToastNotification('Chart exported as PNG successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      showToastNotification('Failed to export chart. Please try again.');
+    }
+  };
+
+
   const isAddedToDashboard = (conversation) => {
     const conversationKey = conversation.question + conversation.timestamp;
     return addedToDashboard.has(conversationKey);
@@ -320,6 +354,13 @@ const AskResults = () => {
                 >
                   {isAddedToDashboard(conversation) ? <Check size={18} /> : <Plus size={18} />}
                 </button>
+                <button 
+  className="action-button export-png-btn"
+  onClick={() => exportChartAsPNG(conversation, index)}
+  title="Export PNG"
+>
+  <Camera size={18} />
+</button>
                 <button 
                   className={`view-toggle-btn ${activeView === 'bar' ? 'active' : ''}`}
                   onClick={() => setActiveView('bar')}
