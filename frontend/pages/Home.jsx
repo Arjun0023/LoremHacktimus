@@ -34,6 +34,8 @@ const [syncType, setSyncType] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en-US');
 
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [syncOrdersChecked, setSyncOrdersChecked] = useState(false);
+  const [syncProductsChecked, setSyncProductsChecked] = useState(false);
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -313,29 +315,54 @@ const handleSync = async (type) => {
   </button>
   
 </div>
-<div className="my-dashboards-section" style={{ position: 'relative' }}>
-    <button 
-        onClick={() => setShowSyncDropdown(!showSyncDropdown)}
-        disabled={isLoadingOrders || !application_id}
+<div className="my-dashboards-section" style={{ position: 'relative', minWidth: 180 }}>
+  <button
+    className="my-dashboards-btn"
+    onClick={() => setShowSyncDropdown((prev) => !prev)}
+    disabled={isLoadingOrders || !application_id}
+    style={{ minWidth: 120 }}
+  >
+    <FileText className="btn-icon" />
+    Sync Data
+  </button>
+  {showSyncDropdown && (
+    <div className="sync-dropdown">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <input
+          type="checkbox"
+          checked={syncOrdersChecked}
+          onChange={e => setSyncOrdersChecked(e.target.checked)}
+          disabled={isLoadingOrders || !application_id}
+        />
+        Orders
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <input
+          type="checkbox"
+          checked={syncProductsChecked}
+          onChange={e => setSyncProductsChecked(e.target.checked)}
+          disabled={isLoadingOrders || !application_id}
+        />
+        Products
+      </label>
+      <button
         className="my-dashboards-btn"
-        style={{ marginLeft: '10px' }}
-    >
-        <FileText className="btn-icon" />
-        {isLoadingOrders ? `Syncing ${syncType}...` : 'Sync Data'}
-    </button>
-    
-    {showSyncDropdown && (
-        <div className="sync-dropdown">
-            <div className="sync-option" onClick={() => handleSync('orders')}>
-                <div className="sync-option-title">Sync Orders</div>
-                <div className="sync-option-desc">Get insights on your orders</div>
-            </div>
-            <div className="sync-option" onClick={() => handleSync('products')}>
-                <div className="sync-option-title">Sync Products</div>
-                <div className="sync-option-desc">Analyze your product catalog</div>
-            </div>
-        </div>
-    )}
+        style={{ marginTop: 10, width: '100%' }}
+        disabled={
+          (!syncOrdersChecked && !syncProductsChecked) ||
+          isLoadingOrders ||
+          !application_id
+        }
+        onClick={async () => {
+          if (syncOrdersChecked) await handleSync('orders');
+          if (syncProductsChecked) await handleSync('products');
+          setShowSyncDropdown(false);
+        }}
+      >
+        {isLoadingOrders ? "Syncing..." : "Start Sync"}
+      </button>
+    </div>
+  )}
 </div>
 </div>
         </div>
