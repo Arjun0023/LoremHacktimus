@@ -590,3 +590,74 @@
   background: #059669;
   border-color: #059669;
 }
+
+/* Save Dashboard Box Styles */
+.save-dashboard-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: flex-start;
+  margin-top: 10px;
+}
+
+.save-dashboard-form label {
+  font-size: 16px;
+  color: #22223b;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.save-dashboard-form input[type="text"] {
+  padding: 7px 12px;
+  font-size: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  width: 260px;
+  max-width: 100%;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.save-dashboard-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.save-btn {
+  padding: 7px 18px;
+  font-size: 15px;
+  border-radius: 5px;
+  border: none;
+  background: #22c55e;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.save-btn:disabled {
+  background: #a7f3d0;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.cancel-btn {
+  padding: 7px 18px;
+  font-size: 15px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #22223b;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #e5e7eb;
+}
