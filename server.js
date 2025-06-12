@@ -44,7 +44,7 @@ const upload = multer({
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dashboard_db';
 
 mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
+    useNewUrlParser: true,  
     useUnifiedTopology: true,
 })
 .then(() => console.log('Connected to MongoDB'))
@@ -569,7 +569,7 @@ app.post('/api/upload-file', upload.single('file'), async function(req, res) {
         // Forward the request to the target API
         console.log('Forwarding request to http://127.0.0.1:8000/upload');
         
-        const forwardResponse = await axios.post('http://127.0.0.1:8000/upload', forwardFormData, {
+        const forwardResponse = await axios.post(`${AI_SERVER_URL}/upload`, forwardFormData, {
             headers: {
                 ...forwardFormData.getHeaders()
                 // Removed x-company-id header since target API doesn't expect it
@@ -803,7 +803,7 @@ Common Query Examples:
 
         console.log('Forwarding to ask-mongo API...');
         
-        const forwardResponse = await axios.post('http://127.0.0.1:8000/ask-mongo', forwardFormData, {
+        const forwardResponse = await axios.post(`${AI_SERVER_URL}/ask-mongo`, forwardFormData, {
             headers: {
                 ...forwardFormData.getHeaders()
             },
@@ -858,7 +858,7 @@ Common Query Examples:
                 conversionFormData.append('session_id', session_id || 'session123');
                 conversionFormData.append('data_type', dataType); // Add data type for better conversion
 
-                const conversionResponse = await axios.post('http://127.0.0.1:8000/convert-to-frontend', conversionFormData, {
+                const conversionResponse = await axios.post(`${AI_SERVER_URL}/convert-to-frontend`, conversionFormData, {
                     headers: {
                         ...conversionFormData.getHeaders()
                     },
@@ -1188,7 +1188,7 @@ app.post('/api/route-ask', upload.none(), async function(req, res) {
 
         console.log('Forwarding ask request to http://127.0.0.1:8000/ask');
         
-        const forwardResponse = await axios.post('http://127.0.0.1:8000/ask', forwardFormData, {
+        const forwardResponse = await axios.post(`${AI_SERVER_URL}/ask`, forwardFormData, {
             headers: {
                 ...forwardFormData.getHeaders()
             },
@@ -1238,7 +1238,7 @@ app.post('/api/route-summarize', async function(req, res) {
         // Forward the request to the target API as JSON
         console.log('Forwarding summarize request to http://127.0.0.1:8000/summarize');
         
-        const forwardResponse = await axios.post('http://127.0.0.1:8000/summarize', {
+        const forwardResponse = await axios.post(`${AI_SERVER_URL}/summarize`, {
             question: question,
             data: data,
             language: language || 'en-IN'
@@ -1387,5 +1387,8 @@ app.get('*', (req, res) => {
     .set("Content-Type", "text/html")
     .send(readFileSync(path.join(STATIC_PATH, "index.html")));
 });
+
+const AI_SERVER_URL = process.env.AI_SERVER_URL;
+//  || 'http://127.0.0.1:8000';
 
 module.exports = app;
